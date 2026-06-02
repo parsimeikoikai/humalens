@@ -36,7 +36,7 @@ AI-powered search for humanitarian reports and crisis briefs. Ask questions acro
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/yourname/relieflens.git
+git clone https://github.com/parsimeikoikai/relieflens
 cd relieflens
 
 # 2. Add your API key
