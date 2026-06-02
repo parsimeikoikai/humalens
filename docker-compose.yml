@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8001
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      - chromadb
+    volumes:
+      - ./backend:/app
+
+  chromadb:
+    image: chromadb/chroma
+    ports:
+      - "8001:8001"
+    volumes:
+      - chroma_data:/chroma/chroma
+
+volumes:
+  chroma_data:
