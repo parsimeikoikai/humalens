@@ -1,37 +1,100 @@
+# =========================
+# BACKEND (Python / FastAPI)
+# =========================
 
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+__pycache__/
+*.py[cod]
+*$py.class
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
 
-# testing
-/coverage
+# Environment variables
+.env
+.env.*
+!.env.example
 
-# next.js
-/.next/
-/out/
+# Logs
+*.log
 
-# production
-/build
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
 
-# misc
+# Mypy / type checkers
+.mypy_cache/
+.dmypy.json
+
+# SQLite / local DBs
+*.sqlite3
+*.db
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
 .DS_Store
-*.pem
+Thumbs.db
 
-# debug
+
+# =========================
+# FRONTEND (Node / JS / TS)
+# =========================
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Next.js
+.next/
+.vercel/
+
+# Vite
+.vite/
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
-.env*.local
+# Environment variables
+frontend/.env
+frontend/.env.*
+!.env.example
 
-# vercel
-.vercel
+# Coverage / testing
+coverage/
+.nyc_output/
 
-# typescript
+# Cache
+.eslintcache
+.parcel-cache/
+.turbo/
+
+# TypeScript
 *.tsbuildinfo
-next-env.d.ts
+
+# Mac / OS
+.DS_Store
+
+
+# =========================
+# DOCKER (optional)
+# =========================
+docker-compose.override.yml
+
+# =========================
+# TEMP / EDITORS
+# =========================
+*.swp
+*.swo
