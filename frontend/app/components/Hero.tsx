@@ -41,7 +41,7 @@ export default function Hero({ onSearch }: HeroProps) {
           </div>
 
           <div className="flex items-center justify-center gap-3 mt-8 flex-wrap">
-            {/* ReliefWeb API Badge */}
+          
             <div className="group relative">
               <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-accent to-accent/90
                             text-accent-foreground rounded-full text-sm font-medium shadow-sm
@@ -57,13 +57,18 @@ export default function Hero({ onSearch }: HeroProps) {
               </div>
             </div>
 
-            {/* Divider */}
+    
             <span className="text-muted-foreground text-sm">or</span>
 
-            {/* Upload Badge */}
+        
             <div className="group relative">
               <button
                 type="button"
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent("relieflens:open-upload-modal")
+                  );
+                }}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-card border-2 border-accent/30
                          text-foreground rounded-full text-sm font-medium
                          hover:bg-accent/5 hover:border-accent transition-all"
@@ -80,7 +85,7 @@ export default function Hero({ onSearch }: HeroProps) {
             </div>
           </div>
 
-          {/* Example queries */}
+       
           <div className="mt-8 flex items-center justify-center gap-2 flex-wrap">
             <span className="text-sm text-muted-foreground">Try:</span>
             {["WASH needs in Yemen", "Cholera outbreak Sudan", "Funding gaps Syria"].map((example, i) => (
