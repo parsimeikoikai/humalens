@@ -1,6 +1,6 @@
 # ReliefLens 
 
-AI-powered search for humanitarian reports and crisis briefs. Ask questions across thousands of documents sourced from ReliefWeb or upload your own PDFs.
+AI-powered search for humanitarian reports and crisis briefs. Ask questions across thousands of documents sourced from ReliefWeb,ODP ,etc or upload your own PDFs.
 
 ---
 
@@ -51,11 +51,18 @@ Then open [http://localhost:3000](http://localhost:3000)
 
 ---
 
+## Live demo
+
+Open the deployed UI: https://relieflens-dev-ui.vercel.app/
+
+
+---
+
 ## API endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/ingest/api` | Fetch and index reports from ReliefWeb |
+| POST | `/ingest/api` | Fetch and index reports  |
 | POST | `/ingest/pdf` | Upload and index a PDF |
 | GET | `/query/stream` | Ask a question, stream the answer |
 
@@ -73,9 +80,5 @@ relieflens/
 └── .env
 ```
 
----
 
-## Data sources
-
-Reports are sourced from [ReliefWeb](https://reliefweb.int) via their public API. No authentication required.
 
