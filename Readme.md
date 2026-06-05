@@ -9,7 +9,7 @@ AI-powered search for humanitarian reports and crisis briefs. Ask questions acro
 - **Search by question** — ask natural language questions like *"How many people were displaced in DRC in 2024?"*
 - **Two ingestion sources** — fetch reports directly from the ReliefWeb API or upload your own PDF
 - **Streaming answers** — responses stream back in real time via SSE
-- **Persistent vector storage** — embeddings stored in ChromaDB so your data survives restarts
+- **Persistent vector storage** — embeddings stored in ChromaDB (Docker volume) so your data survives restarts
 
 ---
 
