@@ -13,10 +13,12 @@ export default function Home() {
 
   useEffect(() => {
     const handler = () => setIsUploadModalOpen(true);
-    window.addEventListener("relieflens:open-upload-modal", handler as EventListener);
+    window.addEventListener("humalens:open-upload-modal", handler as EventListener);
+
     return () => {
       window.removeEventListener(
-        "relieflens:open-upload-modal",
+        "humalens:open-upload-modal",
+
         handler as EventListener
       );
     };

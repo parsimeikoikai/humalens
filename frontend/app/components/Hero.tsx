@@ -22,8 +22,7 @@ export default function Hero({ onSearch }: HeroProps) {
           Search humanitarian reports with AI
         </h1>
         <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
-          Ask questions across thousands of crisis briefs, situation reports,
-          and field updates from ReliefWeb
+        Cut through thousands of humanitarian documents. Get answers in seconds.
         </p>
 
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
@@ -47,13 +46,14 @@ export default function Hero({ onSearch }: HeroProps) {
                             text-accent-foreground rounded-full text-sm font-medium shadow-sm
                             hover:shadow-md transition-all cursor-pointer">
                 <Database className="w-4 h-4" />
-                <span>Powered by ReliefWeb API</span>
+              <span>Powered by Humanitarian Data</span>
                 <Sparkles className="w-3.5 h-3.5 opacity-80" />
               </div>
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-foreground text-background
                             rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity
                             pointer-events-none z-10">
-                Search across 500,000+ humanitarian reports
+              
+                Search across thousands of crisis reports & field updates
               </div>
             </div>
 
@@ -66,7 +66,8 @@ export default function Hero({ onSearch }: HeroProps) {
                 type="button"
                 onClick={() => {
                   window.dispatchEvent(
-                    new CustomEvent("relieflens:open-upload-modal")
+                    new CustomEvent("humalens:open-upload-modal")
+
                   );
                 }}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-card border-2 border-accent/30

@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ReliefLens",
+  title: "Humalens",
+
   description: "AI-powered search for humanitarian reports and crisis briefs.",
 };
 

@@ -2,7 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "ReliefLens"
+    PROJECT_NAME: str = "Humalens"
+
 
     CHROMA_HOST: str = "chromadb"
     CHROMA_PORT: int = 8001

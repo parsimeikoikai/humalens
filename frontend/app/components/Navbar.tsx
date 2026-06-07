@@ -10,7 +10,8 @@ export default function Navbar({ onUploadClick }: NavbarProps) {
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Search className="w-6 h-6 text-accent" />
-          <span className="font-semibold text-xl text-foreground">ReliefLens</span>
+          <span className="font-semibold text-xl text-foreground">Humalens</span>
+
         </div>
 
         <div className="flex items-center gap-8">

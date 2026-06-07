@@ -1,4 +1,5 @@
-# ReliefLens 
+# Humalens 
+
 
 AI-powered search for humanitarian reports and crisis briefs. Ask questions across thousands of documents sourced from ReliefWeb,ODP ,etc or upload your own PDFs.
 
@@ -7,9 +8,10 @@ AI-powered search for humanitarian reports and crisis briefs. Ask questions acro
 ## What it does
 
 - **Search by question** — ask natural language questions like *"How many people were displaced in DRC in 2024?"*
-- **Two ingestion sources** — fetch reports directly from the ReliefWeb API or upload your own PDF
+- **Flexible ingestion** — fetch reports from the ReliefWeb API, upload your own PDFs, or ingest TXT and DOCX files
 - **Streaming answers** — responses stream back in real time via SSE
-- **Persistent vector storage** — embeddings stored in ChromaDB (Docker volume) so your data survives restarts
+- **Persistent vector storage** — embeddings stored in ChromaDB so your data survives restarts
+- **Source agnostic** — not tied to any single data provider; bring your own documents from any humanitarian source
 
 ---
 
@@ -36,8 +38,9 @@ AI-powered search for humanitarian reports and crisis briefs. Ask questions acro
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/parsimeikoikai/relieflens
-cd relieflens
+git clone https://github.com/parsimeikoikai/humalens
+cd humalens
+
 
 # 2. Add your API key
 cp .env.example .env
@@ -54,6 +57,7 @@ Then open [http://localhost:3000](http://localhost:3000)
 ## Live demo
 
 Open the deployed UI: https://relieflens-dev-ui.vercel.app/
+
 
 
 # Backend 
