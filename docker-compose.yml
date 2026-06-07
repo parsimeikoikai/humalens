@@ -5,24 +5,21 @@ services:
     build: ./frontend
     ports:
       - "3050:3050"
-    
     volumes:
       - ./frontend:/app:delegated
       - node_modules_frontend:/app/node_modules
-
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:8000
     depends_on:
       - backend
-    
 
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - 9000:9000
     environment:
       - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8001
+      - CHROMA_PORT=8000
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     depends_on:
       - chromadb
@@ -31,13 +28,12 @@ services:
 
   chromadb:
     image: chromadb/chroma
-    # ChromaDB hosted as a docker service; backend connects via CHROMA_HOST=chromadb
     ports:
-      - "8001:8001"
+      - "8001:8000"
     volumes:
       - chroma_data:/chroma/chroma
     restart: unless-stopped
-    
+
 volumes:
   chroma_data:
   node_modules_frontend:
