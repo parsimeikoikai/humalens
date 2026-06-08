@@ -19,7 +19,7 @@ services:
       - 9000:9000
     environment:
       - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8001
+      - CHROMA_PORT=8000
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     depends_on:
       - chromadb
@@ -29,7 +29,7 @@ services:
   chromadb:
     image: chromadb/chroma
     ports:
-      - "8002:8001"
+      - "8002:8000"
     volumes:
       - chroma_data:/chroma/chroma
     restart: unless-stopped
