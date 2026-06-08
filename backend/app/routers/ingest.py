@@ -1,19 +1,25 @@
 import os
 from tempfile import NamedTemporaryFile
-from typing import List
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from app.dependencies import get_embedder, get_vectorstore
+from app.services.embedder import Embedder
+from app.services.vectorstore import VectorStore
 from app.models.ingest import IngestRequest, IngestResponse
 from app.services.docs_processor import DocsProcessor
+
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 processor = DocsProcessor()
 
 
 @router.post("/api", response_model=IngestResponse)
-def ingest_from_api(payload: IngestRequest):
-    """POST /ingest/api"""
+def ingest_from_api(
+    payload: IngestRequest,
+    embedder: Embedder = Depends(get_embedder),
+    vectorstore: VectorStore = Depends(get_vectorstore),
+):
     documents = [
         {
             "text": processor.clean_text(document.text),
@@ -24,12 +30,18 @@ def ingest_from_api(payload: IngestRequest):
     ]
 
     chunks = processor.process_documents(documents)
+    embedded_chunks = embedder.embed_chunks_from_processed(chunks)
+    vectorstore.store(embedded_chunks)
+
     return {"processed_chunks": chunks}
 
 
 @router.post("/pdf", response_model=IngestResponse)
-async def ingest_from_pdf(file: UploadFile = File(...)):
-    """POST /ingest/pdf"""
+async def ingest_from_pdf(
+    file: UploadFile = File(...),
+    embedder: Embedder = Depends(get_embedder),
+    vectorstore: VectorStore = Depends(get_vectorstore),
+):
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=415, detail="Only PDF uploads are supported.")
 
@@ -56,5 +68,7 @@ async def ingest_from_pdf(file: UploadFile = File(...)):
     ]
 
     chunks = processor.process_documents(documents)
-    return {"processed_chunks": chunks}
+    embedded_chunks = embedder.embed_chunks_from_processed(chunks)
+    vectorstore.store(embedded_chunks)
 
+    return {"processed_chunks": chunks}

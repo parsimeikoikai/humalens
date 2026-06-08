@@ -29,7 +29,7 @@ services:
   chromadb:
     image: chromadb/chroma
     ports:
-      - "8001:8000"
+      - "8002:8001"
     volumes:
       - chroma_data:/chroma/chroma
     restart: unless-stopped
