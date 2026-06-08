@@ -19,7 +19,7 @@ services:
       - 9000:9000
     environment:
       - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8000
+      - CHROMA_PORT=8001
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     depends_on:
       - chromadb

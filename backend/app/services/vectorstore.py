@@ -16,8 +16,8 @@ class VectorStore:
 
     def __init__(
         self,
-        host: str = "chromadb",
-        port: int = 8001,
+        host: str = os.getenv("CHROMA_HOST", "chromadb"),
+        port: int = int(os.getenv("CHROMA_PORT", "8001")),
         collection_name: str = "documents",
     ) -> None:
         self._client = chromadb.HttpClient(host=host, port=port)
