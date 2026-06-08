@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import List
-
+import os 
 import chromadb
 
 logger = logging.getLogger(__name__)
