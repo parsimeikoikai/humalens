@@ -27,7 +27,7 @@ services:
       - ./backend:/app
 
   chromadb:
-    image: chromadb/chroma
+    image: chromadb/chroma:0.5.23 
     ports:
       - "8002:8000"
     volumes:
