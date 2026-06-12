@@ -44,7 +44,7 @@ cd humalens
 
 # 2. Add your API key
 cp .env.example .env
-# edit .env and add your ANTHROPIC_API_KEY
+# edit .env and add your OPENAI_API_KEY
 
 # 3. Start everything
 docker-compose up --build
