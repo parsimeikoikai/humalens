@@ -1,5 +1,9 @@
 """FastAPI app entry point."""
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from app.core.dependencies import register_dependencies
 from app.core.config import settings
 
@@ -21,4 +25,3 @@ def create_app():
 
 
 app = create_app()
-
