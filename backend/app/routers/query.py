@@ -1,5 +1,4 @@
-from google import genai
-from google.genai import types
+from openai import AsyncOpenAI
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
@@ -9,7 +8,7 @@ from app.services.vectorstore import VectorStore
 from app.models.query import QueryRequest
 
 router = APIRouter(prefix="/query", tags=["query"])
-gemini_client = genai.Client()
+openai_client = AsyncOpenAI()
 
 SYSTEM_PROMPT = """You are a helpful assistant that answers questions based strictly on the provided context.
 If the answer is not in the context, say "I don't have enough information to answer that."
@@ -60,19 +59,21 @@ async def query_stream(
     context = build_context(chunks)
     sources = format_sources(chunks)
 
-    # 4. Stream answer from Gemini
+    # 4. Stream answer from OpenAI
     async def stream_response():
-        response = gemini_client.models.generate_content_stream(
-            model="gemini-2.5-flash",
-            contents=f"Context:\n{context}\n\nQuestion: {payload.question}",
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                max_output_tokens=1024,
-            ),
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {payload.question}"},
+            ],
+            max_tokens=1024,
+            stream=True,
         )
-        for chunk in response:
-            if chunk.text:
-                yield chunk.text
+        async for chunk in response:
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
 
         yield f"\n\n[SOURCES]: {sources}"
 
