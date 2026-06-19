@@ -9,33 +9,55 @@ services:
       - ./frontend:/app:delegated
       - node_modules_frontend:/app/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=http://backend:9000
     depends_on:
       - backend
 
   backend:
     build: ./backend
-    env_file:
-      - .env 
     ports:
-      - 9001:9000
+      - "9000:9000"
     environment:
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
+
+      # Database
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ragdb
+
+      # AI
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+
     depends_on:
       - chromadb
+      - postgres
+
     volumes:
       - ./backend:/app
 
   chromadb:
-    image: chromadb/chroma:0.5.23 
+    image: chromadb/chroma:0.5.23
     ports:
       - "8002:8000"
     volumes:
       - chroma_data:/chroma/chroma
     restart: unless-stopped
 
+
+  postgres:
+    image: postgres:16
+    container_name: rag_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ragdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+
 volumes:
   chroma_data:
+  postgres_data:
   node_modules_frontend:

@@ -36,27 +36,32 @@ def ingest_from_api(
     return {"processed_chunks": chunks}
 
 
-@router.post("/pdf", response_model=IngestResponse)
-async def ingest_from_pdf(
+@router.post("/upload", response_model=IngestResponse)
+async def ingest_upload(
     file: UploadFile = File(...),
     embedder: Embedder = Depends(get_embedder),
     vectorstore: VectorStore = Depends(get_vectorstore),
 ):
-    if file.content_type != "application/pdf":
-        raise HTTPException(status_code=415, detail="Only PDF uploads are supported.")
+    # We route inside the processor by file extension (docs vs pdf).
+    suffix = os.path.splitext(file.filename or "")[1].lower()
+    if suffix not in {".pdf", ".docx", ".txt"}:
+        raise HTTPException(
+            status_code=415,
+            detail="Unsupported file type. Upload a .pdf or .docx (or .txt).",
+        )
 
-    with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+    with NamedTemporaryFile(delete=False, suffix=suffix or ".bin") as tmp:
         tmp.write(await file.read())
         temp_path = tmp.name
 
     try:
-        pages = processor.load_pdf(temp_path)
+        pages = processor.load_file(temp_path, filename=file.filename)
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
     if not pages:
-        raise HTTPException(status_code=400, detail="Unable to parse PDF content.")
+        raise HTTPException(status_code=400, detail="Unable to parse uploaded content.")
 
     documents = [
         {

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     CHROMA_HOST: str = "chromadb"
     CHROMA_PORT: int = 8001
 
-    ANTHROPIC_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
 
     EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
 

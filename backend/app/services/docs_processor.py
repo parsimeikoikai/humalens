@@ -17,10 +17,30 @@ class DocsProcessor:
     """
     Document processor responsible for:
     - Loading documents(PDF, Txt, Docx)
-    - Extracting text  
+    - Extracting text
     - Chunking
     - Attaching metadata
     """
+
+    def load_file(self, file_path: str, filename: str | None = None) -> List[Dict]:
+        """Route file loading based on file extension.
+
+        This centralizes the "docs vs pdf" branching so routers stay thin.
+        """
+        name = filename or os.path.basename(file_path)
+        lower = name.lower()
+
+        if lower.endswith(".pdf"):
+            return self.load_pdf(file_path)
+
+        if lower.endswith(".docx"):
+            return self.load_docx(file_path)
+
+        if lower.endswith(".txt"):
+            return self.load_txt(file_path)
+
+        return []
+
 
     def __init__(self, chunk_size: int = 800, chunk_overlap: int = 150):
         self.chunk_size = chunk_size
