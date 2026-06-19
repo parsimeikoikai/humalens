@@ -129,8 +129,9 @@ class DocsProcessor:
                     end = start + break_point + 1
                     chunk = text[start:end]
 
-            chunks.append(chunk.strip())
-            start = max(end - self.chunk_overlap, start + 1)
+            if chunk.strip():
+                chunks.append(chunk.strip())
+            start += self.chunk_size - self.chunk_overlap
 
         return chunks
     
