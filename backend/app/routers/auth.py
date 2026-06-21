@@ -14,6 +14,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
+    full_name: str | None = None
+
 
 
 class LoginRequest(BaseModel):
@@ -35,7 +37,12 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)) -> Au
     if existing is not None:
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    user = User(email=email, password_hash=hash_password(payload.password))
+    user = User(
+        email=email,
+        full_name=payload.full_name,
+        password_hash=hash_password(payload.password),
+    )
+
     db.add(user)
     db.commit()
     db.refresh(user)
