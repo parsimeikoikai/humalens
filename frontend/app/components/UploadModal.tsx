@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { X, Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, CheckCircle, AlertCircle, X } from "lucide-react";
+
+import { API_BASE_URL } from "@/app/lib/api/baseUrl";
+
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -15,15 +18,37 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
 
   if (!isOpen) return null;
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     setFileName(file.name);
     setUploadState("uploading");
 
-    // Simulate upload process
-    setTimeout(() => {
+    try {
+      const formData = new FormData();
+      // Backend expects multipart field name: `file`
+      formData.append("file", file);
+
+      const res = await fetch(`${API_BASE_URL}/ingest/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        let detail = "Upload failed";
+        try {
+          const data = await res.json();
+          detail = data?.detail ?? detail;
+        } catch {
+          // ignore JSON parse errors
+        }
+        throw new Error(detail);
+      }
+
       setUploadState("success");
-    }, 2000);
+    } catch {
+      setUploadState("error");
+    }
   };
+
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -62,7 +87,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       <div className="bg-card rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-6 border-b border-border">
-          <h2 className="text-2xl text-foreground">Upload Humanitarian Report</h2>
+          <h2 className="text-2xl text-foreground">Upload  Report</h2>
           <button
             onClick={resetAndClose}
             className="text-muted-foreground hover:text-foreground transition-colors"
