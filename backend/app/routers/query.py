@@ -105,7 +105,7 @@ async def query_stream(
     async def stream_response():
         try:
             response = await openai_client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
