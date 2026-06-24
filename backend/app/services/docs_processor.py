@@ -55,19 +55,38 @@ class DocsProcessor:
 
         try:
             with open(file_path, "rb") as file:
-                reader = pypdf.PdfReader(file)
+                reader = pypdf.PdfReader(file, strict=False)
+
+                logger.info(
+                    f"Loading PDF: {os.path.basename(file_path)} "
+                    f"({len(reader.pages)} pages)"
+                )
 
                 for page_num, page in enumerate(reader.pages):
-                    text = page.extract_text()
+                    try:
+                        text = page.extract_text() or ""
 
-                    if text:
-                        pages.append({
-                            "text": text,
-                            "page": page_num + 1
-                        })
+                        logger.debug(
+                            f"Page {page_num + 1}: "
+                            f"{len(text)} characters extracted"
+                        )
+
+                        if text.strip():
+                            pages.append({
+                                "text": text,
+                                "page": page_num + 1,
+                            })
+
+                    except Exception as page_error:
+                        logger.warning(
+                            f"Failed to parse page {page_num + 1}: "
+                            f"{page_error}"
+                        )
 
         except Exception as e:
-            logger.error(f"PDF load error: {file_path} | {str(e)}")
+            logger.error(
+                f"PDF load error: {file_path} | {e}"
+            )
 
         return pages
 

@@ -77,3 +77,9 @@ async def ingest_upload(
     vectorstore.store(embedded_chunks)
 
     return {"processed_chunks": chunks}
+
+@router.get("/count")
+def count(vectorstore: VectorStore = Depends(get_vectorstore)):
+    return {
+        "count": vectorstore._collection.count()
+    }

@@ -19,6 +19,13 @@
 
 # production
 /build
+.next
+
+.git
+
+Dockerfile
+
+docker-compose.yml
 
 # misc
 .DS_Store
