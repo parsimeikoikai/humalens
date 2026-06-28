@@ -10,10 +10,18 @@ from app.core.config import settings
 
 def create_app():
     from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
 
     register_dependencies()
 
     app = FastAPI(title=settings.PROJECT_NAME)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     from app.routers.ingest import router as ingest_router
     from app.routers.query import router as query_router

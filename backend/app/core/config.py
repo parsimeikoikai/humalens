@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Humalens"
 
+    CORS_ORIGINS: list[str] = ["http://localhost:3050"]
 
     CHROMA_HOST: str = "chromadb"
     CHROMA_PORT: int = 8001
@@ -19,4 +20,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

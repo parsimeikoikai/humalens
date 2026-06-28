@@ -23,9 +23,17 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
 class AuthResponse(BaseModel):
     id: int
     email: EmailStr
+    message: str
+
+
+class MessageResponse(BaseModel):
     message: str
 
 
@@ -60,3 +68,11 @@ def login_user(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthResp
 
     return AuthResponse(id=user.id, email=user.email, message="Login successful")
 
+
+@router.post("/forgot-password", response_model=MessageResponse)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+) -> MessageResponse:
+    return MessageResponse(
+        message="If an account exists for that email, password reset instructions will be sent."
+    )

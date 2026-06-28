@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
+
 import { X, Mail, Lock, User, Eye, EyeOff, Zap } from "lucide-react";
+
+import {
+  useForgotPasswordMutation,
+  useLoginMutation,
+  useRegisterMutation,
+  type ForgotPasswordRequest,
+  type LoginRequest,
+  type RegisterRequest,
+} from "@/app/services/api/authApi";
+
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -10,25 +21,40 @@ interface AuthModalProps {
   defaultTab?: "login" | "register";
 }
 
+type AuthMode = "login" | "register" | "forgot";
+
 export default function AuthModal({
   isOpen,
   onClose,
   onAuth,
   defaultTab = "login",
 }: AuthModalProps) {
-  const [tab, setTab] = useState<"login" | "register">(defaultTab);
+  const [tab, setTab] = useState<AuthMode>(defaultTab);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const [login, { isLoading: isLoginApiLoading }] = useLoginMutation();
+  const [register, { isLoading: isRegisterApiLoading }] =
+    useRegisterMutation();
+  const [forgotPassword, { isLoading: isForgotPasswordApiLoading }] =
+    useForgotPasswordMutation();
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
-    if (!form.email || !form.password) {
+    if (!form.email) {
+      setError("Please enter your email address.");
+      return;
+    }
+    if (tab !== "forgot" && !form.password) {
       setError("Please fill in all required fields.");
       return;
     }
@@ -36,21 +62,83 @@ export default function AuthModal({
       setError("Please enter your name.");
       return;
     }
-    if (form.password.length < 6) {
+    if (tab !== "forgot" && form.password.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      onAuth({
-        name: tab === "register" ? form.name : form.email.split("@")[0],
+    try {
+      setIsLoading(true);
+
+      if (tab === "login") {
+        const payload: LoginRequest = {
+          email: form.email,
+          password: form.password,
+        };
+
+        const res = await login(payload).unwrap();
+        const name =
+          res?.name ??
+          res?.user?.name ??
+          res?.full_name ??
+          form.email.split("@")[0];
+
+        const email = res?.email ?? res?.user?.email ?? form.email;
+
+        onAuth({ name, email });
+        onClose();
+        return;
+      }
+
+      if (tab === "forgot") {
+        const payload: ForgotPasswordRequest = {
+          email: form.email,
+        };
+
+        const res = await forgotPassword(payload).unwrap();
+        setForm((currentForm) => ({
+          ...currentForm,
+          password: "",
+        }));
+        setTab("login");
+        setSuccess(
+          res.message ||
+            "If an account exists for that email, password reset instructions will be sent."
+        );
+        return;
+      }
+
+      const payload: RegisterRequest = {
         email: form.email,
-      });
-      onClose();
-    }, 1000);
+        password: form.password,
+        full_name: form.name,
+      };
+
+      await register(payload).unwrap();
+      setForm((currentForm) => ({
+        ...currentForm,
+        name: "",
+        password: "",
+      }));
+      setTab("login");
+      setSuccess("Account created. Please sign in to continue.");
+    } catch (err) {
+      const message =
+        // RTK Query/Fetch errors usually land here
+        (err as { data?: { detail?: string; message?: string } })?.data
+          ?.detail ??
+        (err as { data?: { detail?: string; message?: string } })?.data
+          ?.message ??
+        // fallback
+        "Authentication failed. Please check your credentials.";
+
+      setError(message);
+
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -76,12 +164,18 @@ export default function AuthModal({
                 <span className="font-semibold text-foreground">Humalens</span>
               </div>
               <h2 className="text-2xl font-semibold text-foreground">
-                {tab === "login" ? "Welcome back" : "Create your account"}
+                {tab === "login"
+                  ? "Welcome back"
+                  : tab === "register"
+                    ? "Create your account"
+                    : "Reset your password"}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {tab === "login"
                   ? "Sign in to access your knowledge bases"
-                  : "Start querying your documents with AI"}
+                  : tab === "register"
+                    ? "Start querying your documents with AI"
+                    : "Enter your email to request reset instructions"}
               </p>
             </div>
             <button
@@ -93,24 +187,41 @@ export default function AuthModal({
           </div>
 
           {/* Tab switcher */}
-          <div className="flex bg-secondary rounded-xl p-1 mb-6">
-            {(["login", "register"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => {
-                  setTab(t);
-                  setError("");
-                }}
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                  tab === t
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t === "login" ? "Sign In" : "Sign Up"}
-              </button>
-            ))}
-          </div>
+          {tab !== "forgot" && (
+            <div className="flex bg-secondary rounded-xl p-1 mb-6">
+              {(["login", "register"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    setTab(t);
+                    setError("");
+                    setSuccess("");
+                  }}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                    tab === t
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t === "login" ? "Sign In" : "Sign Up"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {tab === "forgot" && (
+            <button
+              type="button"
+              onClick={() => {
+                setTab("login");
+                setError("");
+                setSuccess("");
+              }}
+              className="mb-6 text-sm text-accent hover:underline font-medium"
+            >
+              Back to sign in
+            </button>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -158,11 +269,24 @@ export default function AuthModal({
               </div>
             </div>
 
-            <div>
+            {tab !== "forgot" && (
+              <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-foreground">Password</label>
                 {tab === "login" && (
-                  <button type="button" className="text-xs text-accent hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab("forgot");
+                      setError("");
+                      setSuccess("");
+                      setForm((currentForm) => ({
+                        ...currentForm,
+                        password: "",
+                      }));
+                    }}
+                    className="text-xs text-accent hover:underline"
+                  >
                     Forgot password?
                   </button>
                 )}
@@ -193,7 +317,8 @@ export default function AuthModal({
                   )}
                 </button>
               </div>
-            </div>
+              </div>
+            )}
 
             {error && (
               <p className="text-sm text-destructive bg-destructive/8 border border-destructive/20 rounded-lg px-3 py-2">
@@ -201,9 +326,21 @@ export default function AuthModal({
               </p>
             )}
 
+            {success && (
+              <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                {success}
+              </p>
+            )}
+
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={
+                isLoading ||
+                isLoginApiLoading ||
+                isRegisterApiLoading ||
+                isForgotPasswordApiLoading
+              }
+
               className="w-full py-2.5 bg-accent text-accent-foreground rounded-xl font-medium
                          hover:bg-accent/90 disabled:opacity-60 disabled:cursor-not-allowed
                          transition-all flex items-center justify-center gap-2 mt-2"
@@ -211,10 +348,16 @@ export default function AuthModal({
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-accent-foreground/30 border-t-accent-foreground rounded-full animate-spin" />
-                  {tab === "login" ? "Signing in..." : "Creating account..."}
+                  {tab === "login"
+                    ? "Signing in..."
+                    : tab === "register"
+                      ? "Creating account..."
+                      : "Sending instructions..."}
                 </>
               ) : tab === "login" ? (
                 "Sign In"
+              ) : tab === "forgot" ? (
+                "Send Reset Instructions"
               ) : (
                 "Create Account"
               )}
@@ -222,14 +365,17 @@ export default function AuthModal({
           </form>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">or continue with</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
+          {tab !== "forgot" && (
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">or continue with</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+          )}
 
           {/* Social placeholder */}
-          <div className="grid grid-cols-2 gap-3">
+          {tab !== "forgot" && (
+            <div className="grid grid-cols-2 gap-3">
             {["Google", "GitHub"].map((provider) => (
               <button
                 key={provider}
@@ -264,24 +410,27 @@ export default function AuthModal({
                 {provider}
               </button>
             ))}
-          </div>
+            </div>
+          )}
 
-          <p className="text-center text-xs text-muted-foreground mt-5">
-            {tab === "login" ? "Don't have an account? " : "Already have an account? "}
-            <button
-              type="button"
-              onClick={() => {
-                setTab(tab === "login" ? "register" : "login");
-                setError("");
-              }}
-              className="text-accent hover:underline font-medium"
-            >
-              {tab === "login" ? "Sign up free" : "Sign in"}
-            </button>
-          </p>
+          {tab !== "forgot" && (
+            <p className="text-center text-xs text-muted-foreground mt-5">
+              {tab === "login" ? "Don't have an account? " : "Already have an account? "}
+              <button
+                type="button"
+                onClick={() => {
+                  setTab(tab === "login" ? "register" : "login");
+                  setError("");
+                  setSuccess("");
+                }}
+                className="text-accent hover:underline font-medium"
+              >
+                {tab === "login" ? "Sign up free" : "Sign in"}
+              </button>
+            </p>
+          )}
         </div>
       </div>
     </div>
   );
 }
-

@@ -9,7 +9,7 @@ services:
       - ./frontend:/app:delegated
       - node_modules_frontend:/app/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:9000
+      - NEXT_PUBLIC_API_URL=http://localhost:9000
     depends_on:
       - backend
 
