@@ -16,11 +16,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Humalens",
-
-  description: "AI-powered search for humanitarian reports and crisis briefs.",
+  title: "Humalens | AI Knowledge Assistant",
+  description:
+    "AI-powered knowledge search that helps you discover insights, analyze documents, and get accurate answers from your data.",
 };
-
 export default function RootLayout({
   children,
 }: Readonly<{

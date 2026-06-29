@@ -70,17 +70,7 @@ export default function Navbar({
         </div>
 
         {/* Nav links */}
-        <div className="hidden md:flex items-center gap-7">
-          <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Product
-          </a>
-          <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Docs
-          </a>
-          <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Pricing
-          </a>
-        </div>
+   
 
         {/* Auth area */}
         <div className="flex items-center gap-3">

@@ -3,6 +3,16 @@ import { Upload, CheckCircle, AlertCircle, X } from "lucide-react";
 
 import { API_BASE_URL } from "@/app/lib/api/baseUrl";
 
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+const SUPPORTED_EXTENSIONS = [".pdf", ".docx", ".txt"];
+
+type IngestUploadResponse = {
+  processed_chunks: Array<{
+    content: string;
+    source: string;
+    metadata: Record<string, unknown>;
+  }>;
+};
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -14,17 +24,34 @@ type UploadState = "idle" | "uploading" | "success" | "error";
 export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [fileName, setFileName] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [processedChunkCount, setProcessedChunkCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
   if (!isOpen) return null;
 
   const handleFileSelect = async (file: File) => {
     setFileName(file.name);
+    setErrorMessage("");
+    setProcessedChunkCount(0);
+
+    const extension = `.${file.name.split(".").pop()?.toLowerCase() ?? ""}`;
+    if (!SUPPORTED_EXTENSIONS.includes(extension)) {
+      setErrorMessage("Unsupported file type. Upload a PDF, DOCX, or TXT file.");
+      setUploadState("error");
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setErrorMessage("File is too large. Upload a document smaller than 50MB.");
+      setUploadState("error");
+      return;
+    }
+
     setUploadState("uploading");
 
     try {
       const formData = new FormData();
-      // Backend expects multipart field name: `file`
       formData.append("file", file);
 
       const res = await fetch(`${API_BASE_URL}/ingest/upload`, {
@@ -36,15 +63,22 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
         let detail = "Upload failed";
         try {
           const data = await res.json();
-          detail = data?.detail ?? detail;
+          detail = data?.detail ?? data?.message ?? detail;
         } catch {
           // ignore JSON parse errors
         }
         throw new Error(detail);
       }
 
+      const data = (await res.json()) as IngestUploadResponse;
+      setProcessedChunkCount(data.processed_chunks?.length ?? 0);
       setUploadState("success");
-    } catch {
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "There was an error uploading the document. Please try again."
+      );
       setUploadState("error");
     }
   };
@@ -79,6 +113,8 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const resetAndClose = () => {
     setUploadState("idle");
     setFileName("");
+    setErrorMessage("");
+    setProcessedChunkCount(0);
     onClose();
   };
 
@@ -87,7 +123,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       <div className="bg-card rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-6 border-b border-border">
-          <h2 className="text-2xl text-foreground">Upload  Report</h2>
+          <h2 className="text-2xl text-foreground">Upload Report</h2>
           <button
             onClick={resetAndClose}
             className="text-muted-foreground hover:text-foreground transition-colors"
@@ -102,7 +138,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
             <>
               <p className="text-muted-foreground mb-6 leading-relaxed">
                 Upload situation reports, crisis briefs, assessments, or field updates.
-                We support PDF, Word, and text documents up to 50MB.
+                We support PDF, DOCX, and text documents up to 50MB.
               </p>
 
               <div
@@ -124,7 +160,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                   Browse files
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx,.txt"
+                    accept=".pdf,.docx,.txt"
                     onChange={handleInputChange}
                     className="hidden"
                   />
@@ -136,7 +172,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                 <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-1">•</span>
-                    <span>Accepted formats: PDF, DOC, DOCX, TXT</span>
+                    <span>Accepted formats: PDF, DOCX, TXT</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-1">•</span>
@@ -144,11 +180,11 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-1">•</span>
-                    <span>Documents will be processed and made searchable within 24 hours</span>
+                    <span>Documents are processed and indexed through the ingestion endpoint</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-1">•</span>
-                    <span>All uploads are encrypted and handled in compliance with humanitarian data protection standards</span>
+                    <span>All uploads are sent as multipart form data to /ingest/upload</span>
                   </li>
                 </ul>
               </div>
@@ -171,7 +207,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
               <CheckCircle className="w-16 h-16 mx-auto mb-6 text-green-600" />
               <p className="text-2xl mb-2 text-foreground">Upload successful</p>
               <p className="text-muted-foreground mb-8">
-                {fileName} has been uploaded and queued for processing
+                {fileName} was uploaded and indexed into {processedChunkCount} chunks
               </p>
 
               <div className="bg-secondary rounded-xl p-6 max-w-md mx-auto mb-8 text-left">
@@ -179,15 +215,15 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                 <ul className="space-y-3 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-1">1.</span>
-                    <span>Document is scanned and extracted</span>
+                    <span>Document text was extracted</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-1">2.</span>
-                    <span>Content is indexed and made searchable</span>
+                    <span>Content was chunked and embedded</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-1">3.</span>
-                    <span>You'll receive an email when processing is complete</span>
+                    <span>Chunks were stored in the vector database</span>
                   </li>
                 </ul>
               </div>
@@ -197,6 +233,8 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                   onClick={() => {
                     setUploadState("idle");
                     setFileName("");
+                    setErrorMessage("");
+                    setProcessedChunkCount(0);
                   }}
                   className="px-6 py-3 border border-border text-foreground rounded-lg hover:bg-secondary transition-all"
                 >
@@ -217,12 +255,14 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
               <AlertCircle className="w-16 h-16 mx-auto mb-6 text-destructive" />
               <p className="text-2xl mb-2 text-foreground">Upload failed</p>
               <p className="text-muted-foreground mb-8">
-                There was an error uploading {fileName}. Please try again.
+                {errorMessage || `There was an error uploading ${fileName}. Please try again.`}
               </p>
               <button
                 onClick={() => {
                   setUploadState("idle");
                   setFileName("");
+                  setErrorMessage("");
+                  setProcessedChunkCount(0);
                 }}
                 className="px-6 py-3 bg-accent text-accent-foreground rounded-lg hover:bg-opacity-90 transition-all"
               >
