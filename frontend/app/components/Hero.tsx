@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   Database,
@@ -10,12 +10,19 @@ import {
   Lock,
 } from "lucide-react";
 
+import { API_BASE_URL } from "@/app/lib/api/baseUrl";
+
 interface HeroProps {
   onSearch: (query: string) => void;
   onUploadClick: () => void;
   onLoginClick: () => void;
   isAuthenticated: boolean;
 }
+
+type AdminOverviewResponse = {
+  users: Array<unknown>;
+  documents: Array<unknown>;
+};
 
 export default function Hero({
   onSearch,
@@ -24,6 +31,11 @@ export default function Hero({
   isAuthenticated,
 }: HeroProps) {
   const [query, setQuery] = useState("");
+  const [stats, setStats] = useState({
+    documentsIndexed: 0,
+    users: 0,
+  });
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +43,42 @@ export default function Hero({
       onSearch(query);
     }
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadStats = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/overview`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Unable to load platform stats.");
+        }
+
+        const data = (await response.json()) as AdminOverviewResponse;
+        setStats({
+          documentsIndexed: data.documents?.length ?? 0,
+          users: data.users?.length ?? 0,
+        });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsStatsLoading(false);
+        }
+      }
+    };
+
+    loadStats();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   const examples = [
     "Summarize Q3 revenue drivers",
@@ -170,8 +218,11 @@ export default function Hero({
         {/* Social proof */}
         <div className="mt-14 flex items-center justify-center gap-8 text-sm text-muted-foreground flex-wrap">
           {[
-            ["12,000+", "documents indexed"],
-            ["500+", "organizations"]
+            [
+              isStatsLoading ? "..." : stats.documentsIndexed.toLocaleString(),
+              "documents indexed",
+            ],
+            [isStatsLoading ? "..." : stats.users.toLocaleString(), "users"],
           ].map(([stat, label]) => (
             <div key={label} className="text-center">
               <div className="text-2xl font-semibold text-foreground">{stat}</div>
@@ -183,4 +234,3 @@ export default function Hero({
     </section>
   );
 }
-

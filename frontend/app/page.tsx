@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Footer from "./components/Footer";
 import Hero from "./components/Hero";
 import Navbar from "./components/Navbar";
@@ -14,12 +14,41 @@ interface User {
 }
 
 type AuthModalMode = "login" | "register" | null;
+const AUTH_USER_STORAGE_KEY = "humalens:auth-user";
+
+const readStoredUser = (): User | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const rawUser = window.localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    if (!rawUser) return null;
+
+    const parsedUser = JSON.parse(rawUser) as Partial<User>;
+    if (!parsedUser.email || !parsedUser.name) return null;
+
+    return {
+      name: parsedUser.name,
+      email: parsedUser.email,
+    };
+  } catch {
+    window.localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    return null;
+  }
+};
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => readStoredUser());
   const [authModal, setAuthModal] = useState<AuthModalMode>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
+
+  const handleUploadClick = useCallback(() => {
+    if (!user) {
+      setAuthModal("login");
+      return;
+    }
+    setIsUploadModalOpen(true);
+  }, [user]);
 
   useEffect(() => {
     const handler = () => {
@@ -37,19 +66,23 @@ export default function Home() {
         handler as EventListener
       );
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  const handleUploadClick = () => {
-    if (!user) {
-      setAuthModal("login");
-      return;
-    }
-    setIsUploadModalOpen(true);
-  };
+  }, [handleUploadClick]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
+  };
+
+  const handleAuth = (authenticatedUser: User) => {
+    setUser(authenticatedUser);
+    window.localStorage.setItem(
+      AUTH_USER_STORAGE_KEY,
+      JSON.stringify(authenticatedUser)
+    );
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    window.localStorage.removeItem(AUTH_USER_STORAGE_KEY);
   };
 
   const handleBackToHome = () => {
@@ -67,7 +100,7 @@ export default function Home() {
         <AuthModal
           isOpen={authModal !== null}
           onClose={() => setAuthModal(null)}
-          onAuth={(u) => setUser(u)}
+          onAuth={handleAuth}
           defaultTab={authModal ?? "login"}
         />
       </>
@@ -81,7 +114,7 @@ export default function Home() {
         onLoginClick={() => setAuthModal("login")}
         onRegisterClick={() => setAuthModal("register")}
         user={user}
-        onLogout={() => setUser(null)}
+        onLogout={handleLogout}
       />
       <Hero
         onSearch={handleSearch}
@@ -99,10 +132,9 @@ export default function Home() {
       <AuthModal
         isOpen={authModal !== null}
         onClose={() => setAuthModal(null)}
-        onAuth={(u) => setUser(u)}
+        onAuth={handleAuth}
         defaultTab={authModal ?? "login"}
       />
     </div>
   );
 }
-
