@@ -25,7 +25,10 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ragdb
 
       # AI
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_MODEL=${LLM_MODEL}
+
       - CHROMA_TELEMETRY_ENABLED=false
 
     depends_on:

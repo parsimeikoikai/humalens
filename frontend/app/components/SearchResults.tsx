@@ -15,6 +15,14 @@ interface Filters {
   languages: string[];
 }
 
+interface QueryResultItem {
+  id: number;
+  source: string;
+  page?: number | null;
+  excerpt: string;
+  score: number;
+}
+
 export default function SearchResults({ query, onBack }: SearchResultsProps) {
   const [filters, setFilters] = useState<Filters>({
     countries: [],
@@ -26,57 +34,9 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
   const [streamSources, setStreamSources] = useState("");
   const [streamError, setStreamError] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-
-  const sources = [
-    {
-      id: 1,
-      title: "Democratic Republic of the Congo: Humanitarian Snapshot",
-      organization: "OCHA",
-      date: "May 28, 2026",
-      country: "DRC",
-      url: "https://reliefweb.int/report/...",
-      excerpt: "Over 6.9 million people internally displaced across North Kivu, South Kivu, and Ituri provinces. Emergency food assistance reaching 2.3 million people in Q1 2026.",
-      relevance: 95,
-      languages: ["en", "fr"],
-      crisisType: "Displacement"
-    },
-    {
-      id: 2,
-      title: "Protection Monitoring Report: Eastern DRC",
-      organization: "UNHCR",
-      date: "May 15, 2026",
-      country: "DRC",
-      url: "https://reliefweb.int/report/...",
-      excerpt: "Field assessment indicates 1.2M newly displaced individuals since March 2026. Primary concerns include shelter, protection, and access to basic services.",
-      relevance: 92,
-      languages: ["en", "fr", "ar"],
-      crisisType: "Protection Crisis"
-    },
-    {
-      id: 3,
-      title: "IDP Situation Analysis: Great Lakes Region",
-      organization: "IOM",
-      date: "April 30, 2026",
-      country: "Regional",
-      url: "https://reliefweb.int/report/...",
-      excerpt: "Regional displacement tracking shows significant population movements in North Kivu and South Kivu, with cross-border implications for Uganda and Rwanda.",
-      relevance: 88,
-      languages: ["en", "fr"],
-      crisisType: "Displacement"
-    },
-    {
-      id: 4,
-      title: "Flash Update: Renewed Violence in North Kivu",
-      organization: "OCHA",
-      date: "May 20, 2026",
-      country: "DRC",
-      url: "https://reliefweb.int/report/...",
-      excerpt: "Armed conflict in Rutshuru and Masisi territories has forced an estimated 180,000 people to flee their homes in the past two weeks.",
-      relevance: 86,
-      languages: ["en", "fr"],
-      crisisType: "Conflict"
-    }
-  ];
+  const [sources, setSources] = useState<QueryResultItem[]>([]);
+  const [sourcesError, setSourcesError] = useState("");
+  const [isLoadingSources, setIsLoadingSources] = useState(false);
 
   const languageLabels: Record<string, string> = {
     en: "EN",
@@ -202,6 +162,54 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
     };
   }, [query]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadSources = async () => {
+      setSourcesError("");
+      setIsLoadingSources(true);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/query/results`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ question: query, top_k: 8 }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          const detail = data?.detail ?? data?.message ?? "Unable to load sources.";
+          throw new Error(detail);
+        }
+
+        const data = (await response.json()) as {
+          results: QueryResultItem[];
+        };
+
+        setSources(data.results || []);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
+
+        setSourcesError(
+          err instanceof Error ? err.message : "Unable to load sources."
+        );
+      } finally {
+        setIsLoadingSources(false);
+      }
+    };
+
+    loadSources();
+
+    return () => {
+      controller.abort();
+    };
+  }, [query]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -312,66 +320,53 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
             </div>
 
             <div className="space-y-4">
-              {sources.map((source) => (
-                <article
-                  key={source.id}
-                  className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent text-accent-foreground text-sm font-semibold">
-                        {source.id}
-                      </span>
-                      <span className="inline-block px-3 py-1 bg-secondary text-secondary-foreground rounded-md text-sm">
-                        {source.country}
-                      </span>
-                      <span className="inline-block px-2 py-1 bg-accent/10 text-accent rounded text-xs">
-                        {source.crisisType}
-                      </span>
-                      <span className="text-sm text-accent">{source.organization}</span>
-                      <div className="flex items-center gap-1">
-                        <Languages className="w-3.5 h-3.5 text-muted-foreground" />
-                        {source.languages.map((lang, i) => (
-                          <span key={lang} className="text-xs text-muted-foreground">
-                            {languageLabels[lang]}{i < source.languages.length - 1 ? "," : ""}
+              {sources.length > 0 ? (
+                sources.map((source) => (
+                  <article
+                    key={source.id}
+                    className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent text-accent-foreground text-sm font-semibold">
+                          {source.id}
+                        </span>
+                        <span className="inline-block px-3 py-1 bg-secondary text-secondary-foreground rounded-md text-sm">
+                          {source.source}
+                        </span>
+                        {source.page ? (
+                          <span className="inline-block px-2 py-1 bg-accent/10 text-accent rounded text-xs">
+                            Page {source.page}
                           </span>
-                        ))}
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="text-accent">{Math.round(source.score * 100)}% match</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {source.date}
-                      </span>
-                      <span className="text-accent">{source.relevance}% match</span>
-                    </div>
-                  </div>
 
-                  <h3 className="text-lg mb-3 text-foreground leading-snug">
-                    {source.title}
-                  </h3>
+                    <h3 className="text-lg mb-3 text-foreground leading-snug">
+                      {source.source}
+                    </h3>
 
-                  <p className="text-muted-foreground mb-4 leading-relaxed">
-                    {source.excerpt}
-                  </p>
-
-                  <div className="flex items-center gap-4">
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent hover:text-opacity-80 transition-colors inline-flex items-center gap-1"
-                    >
-                      <FileText className="w-4 h-4" />
-                      Read full report
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                </article>
-              ))}
+                    <p className="text-muted-foreground mb-4 leading-relaxed whitespace-pre-wrap">
+                      {source.excerpt}
+                    </p>
+                  </article>
+                ))
+              ) : sourcesError ? (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-red-200">
+                  {sourcesError}
+                </div>
+              ) : isLoadingSources ? (
+                <div className="text-sm text-slate-400">Loading source documents...</div>
+              ) : (
+                <div className="text-sm text-slate-400">No sources returned yet.</div>
+              )}
             </div>
 
             {/* Related Searches */}
+            {/*
             <div className="mt-12 p-6 bg-secondary rounded-xl">
               <h3 className="text-foreground mb-4">Related searches you might find useful:</h3>
               <div className="flex flex-wrap gap-2">
@@ -386,6 +381,7 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
                 </button>
               </div>
             </div>
+            */}
           </div>
         </div>
       </div>

@@ -1,29 +1,37 @@
 import logging
 import os
+from urllib.parse import urlparse
 
-from openai import AsyncOpenAI, APIError, APITimeoutError, RateLimitError
+from openai import APIError, APITimeoutError, RateLimitError
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from app.dependencies import get_embedder, get_vectorstore
-from app.services.embedder import Embedder
-from app.services.vectorstore import VectorStore
 from app.models.query import QueryRequest
+from app.services.embedder import Embedder
+from app.services.llm import (
+    client as llm_client,
+    CHAT_MODEL,
+    LLM_BASE_URL,
+)
+from app.services.vectorstore import VectorStore
 
+
+class QueryResultItem(BaseModel):
+    id: int
+    source: str
+    page: int | None = None
+    excerpt: str
+    score: float
+
+
+class QueryResultsResponse(BaseModel):
+    results: list[QueryResultItem]
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/query", tags=["query"])
-
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-if not OPENAI_API_KEY:
-    logger.warning("OPENAI_API_KEY is not set")
-
-openai_client = AsyncOpenAI(
-    api_key=OPENAI_API_KEY
-)
 
 SYSTEM_PROMPT = """
 You are a helpful assistant that answers questions strictly from the provided context.
@@ -38,7 +46,6 @@ Rules:
 
 MAX_CONTEXT_CHARS = 6000
 DEFAULT_TOP_K = 3
-MODEL_NAME = "gpt-4o-mini"
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +99,23 @@ def sse(event: str, data: str) -> str:
     return f"event: {event}\ndata: {data}\n\n"
 
 
+def get_llm_extra_headers() -> dict[str, str] | None:
+    host = urlparse(LLM_BASE_URL).netloc.lower()
+
+    if host != "openrouter.ai":
+        return None
+
+    headers = {
+        "X-Title": "Humalens",
+    }
+
+    app_url = os.getenv("APP_URL")
+    if app_url:
+        headers["HTTP-Referer"] = app_url
+
+    return headers
+
+
 # ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
@@ -114,7 +138,6 @@ async def query_stream(
         )
 
         result = embedder.embed_texts([payload.question])
-
         question_embedding = result.embeddings[0]
 
     except Exception as e:
@@ -161,7 +184,7 @@ async def query_stream(
 
         return StreamingResponse(
             empty_stream(),
-            media_type="text/event-stream"
+            media_type="text/event-stream",
         )
 
     # -----------------------------------------------------------------------
@@ -174,7 +197,7 @@ async def query_stream(
     logger.info(
         "Context size: %s chars | Sources: %s",
         len(context),
-        sources
+        sources,
     )
 
     # -----------------------------------------------------------------------
@@ -185,12 +208,12 @@ async def query_stream(
         try:
 
             logger.info(
-                "Sending request to OpenAI using model %s",
-                MODEL_NAME
+                "Sending request to LLM provider using model %s",
+                CHAT_MODEL,
             )
 
-            response = await openai_client.chat.completions.create(
-                model=MODEL_NAME,
+            response = await llm_client.chat.completions.create(
+                model=CHAT_MODEL,
                 messages=[
                     {
                         "role": "system",
@@ -198,18 +221,19 @@ async def query_stream(
                     },
                     {
                         "role": "user",
-                        "content":
+                        "content": (
                             f"Context:\n{context}\n\n"
-                            f"Question: {payload.question}",
+                            f"Question: {payload.question}"
+                        ),
                     },
                 ],
                 max_tokens=512,
                 temperature=0,
                 stream=True,
+                extra_headers=get_llm_extra_headers(),
             )
 
             async for chunk in response:
-
                 if not chunk.choices:
                     continue
 
@@ -222,42 +246,82 @@ async def query_stream(
             yield sse("done", "")
 
         except RateLimitError as e:
-
-            logger.exception("OpenAI RateLimitError")
+            logger.exception("LLM provider rate limit error")
 
             yield sse(
                 "error",
-                f"OpenAI quota/rate limit error: {str(e)}"
+                f"LLM provider quota/rate limit error: {str(e)}",
             )
 
         except APITimeoutError as e:
-
-            logger.exception("OpenAI timeout")
+            logger.exception("LLM provider timeout")
 
             yield sse(
                 "error",
-                f"OpenAI timeout: {str(e)}"
+                f"LLM provider timeout: {str(e)}",
             )
 
         except APIError as e:
-
-            logger.exception("OpenAI API error")
+            logger.exception("LLM provider API error")
 
             yield sse(
                 "error",
-                f"OpenAI API error: {str(e)}"
+                f"LLM provider API error: {str(e)}",
             )
 
         except Exception as e:
-
             logger.exception("Unexpected error")
 
             yield sse(
                 "error",
-                f"Unexpected error: {str(e)}"
+                f"Unexpected error: {str(e)}",
             )
 
     return StreamingResponse(
         stream_response(),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+    )
+
+
+@router.post("/results", response_model=QueryResultsResponse)
+async def query_results(
+    payload: QueryRequest,
+    embedder: Embedder = Depends(get_embedder),
+    vectorstore: VectorStore = Depends(get_vectorstore),
+) -> QueryResultsResponse:
+    try:
+        result = embedder.embed_texts([payload.question])
+        question_embedding = result.embeddings[0]
+    except Exception as e:
+        logger.exception("Question embedding failed for results request")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to embed question.",
+        ) from e
+
+    top_k = getattr(payload, "top_k", DEFAULT_TOP_K) or DEFAULT_TOP_K
+
+    try:
+        chunks = vectorstore.query(
+            question_embedding,
+            n_results=top_k,
+        )
+    except Exception as e:
+        logger.exception("Vector store query failed for results request")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve results.",
+        ) from e
+
+    return QueryResultsResponse(
+        results=[
+            QueryResultItem(
+                id=index + 1,
+                source=chunk["metadata"].get("source", "unknown"),
+                page=chunk["metadata"].get("page"),
+                excerpt=chunk["content"][:280],
+                score=chunk.get("score", 0.0),
+            )
+            for index, chunk in enumerate(chunks)
+        ]
     )
