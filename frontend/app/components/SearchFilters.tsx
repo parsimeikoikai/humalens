@@ -1,11 +1,12 @@
-import { X, MapPin, AlertTriangle, Calendar, Languages as LanguagesIcon, CheckCircle2 } from "lucide-react";
+import { X, AlertTriangle, Calendar, Languages as LanguagesIcon, CheckCircle2 } from "lucide-react";
+
 
 interface Filters {
-  countries: string[];
   crisisTypes: string[];
   dateRange: string;
   languages: string[];
 }
+
 
 interface SearchFiltersProps {
   filters: Filters;
@@ -14,10 +15,7 @@ interface SearchFiltersProps {
 }
 
 export default function SearchFilters({ filters, onFilterChange, resultCount = 0 }: SearchFiltersProps) {
-  const countries = [
-    "Afghanistan", "DRC", "Ethiopia", "Myanmar", "Palestine",
-    "Somalia", "South Sudan", "Sudan", "Syria", "Ukraine", "Yemen"
-  ];
+
 
   const crisisTypes = [
     "Conflict", "Displacement", "Food Insecurity", "Health Emergency",
@@ -39,12 +37,7 @@ export default function SearchFilters({ filters, onFilterChange, resultCount = 0
     { value: "1y", label: "Past year" }
   ];
 
-  const toggleCountry = (country: string) => {
-    const newCountries = filters.countries.includes(country)
-      ? filters.countries.filter(c => c !== country)
-      : [...filters.countries, country];
-    onFilterChange({ ...filters, countries: newCountries });
-  };
+
 
   const toggleCrisisType = (type: string) => {
     const newTypes = filters.crisisTypes.includes(type)
@@ -62,15 +55,16 @@ export default function SearchFilters({ filters, onFilterChange, resultCount = 0
 
   const clearAllFilters = () => {
     onFilterChange({
-      countries: [],
       crisisTypes: [],
       dateRange: "all",
       languages: []
     });
   };
 
-  const activeFilterCount = filters.countries.length + filters.crisisTypes.length +
+
+  const activeFilterCount = filters.crisisTypes.length +
     filters.languages.length + (filters.dateRange !== "all" ? 1 : 0);
+
 
   return (
     <aside className="bg-card border border-border rounded-xl overflow-hidden h-fit sticky top-24">
@@ -122,37 +116,7 @@ export default function SearchFilters({ filters, onFilterChange, resultCount = 0
           </div>
         </div>
 
-        {/* Countries */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <MapPin className="w-4 h-4 text-accent" />
-            <label className="text-sm font-medium text-foreground">Countries</label>
-            {filters.countries.length > 0 && (
-              <span className="ml-auto text-xs px-2 py-0.5 bg-accent text-accent-foreground rounded-full">
-                {filters.countries.length}
-              </span>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            {countries.map((country) => {
-              const isSelected = filters.countries.includes(country);
-              return (
-                <button
-                  key={country}
-                  onClick={() => toggleCountry(country)}
-                  className={`w-full flex items-center justify-between p-2 rounded-lg text-sm transition-all ${
-                    isSelected
-                      ? "bg-accent/10 text-accent"
-                      : "text-foreground hover:bg-secondary/50 hover:text-accent"
-                  }`}
-                >
-                  <span>{country}</span>
-                  {isSelected && <CheckCircle2 className="w-4 h-4" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+
 
         {/* Crisis Types */}
         <div>

@@ -239,8 +239,10 @@ class DocsProcessor:
                         "doc_id": doc_id,
                         "chunk_id": i,
                         "page": doc["page"],
-                         "timestamp": datetime.now(timezone.utc).isoformat() 
+                        "category": doc.get("category"),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
+
 
                 })
 

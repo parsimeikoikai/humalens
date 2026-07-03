@@ -69,7 +69,9 @@ class VectorStore:
                 "page":      chunk["metadata"]["page"],
                 "source":    chunk["source"],
                 "timestamp": chunk["metadata"]["timestamp"],
+                "category": chunk["metadata"].get("category"),
             })
+
 
         self._collection.upsert(
             ids=ids,

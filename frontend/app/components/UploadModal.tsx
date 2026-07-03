@@ -27,6 +27,8 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [processedChunkCount, setProcessedChunkCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [category, setCategory] = useState<string>("");
+
 
   if (!isOpen) return null;
 
@@ -53,6 +55,10 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      if (category.trim()) {
+        formData.append("category", category.trim());
+      }
+
 
       const res = await fetch(`${API_BASE_URL}/ingest/upload`, {
         method: "POST",
@@ -115,6 +121,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
     setFileName("");
     setErrorMessage("");
     setProcessedChunkCount(0);
+    setCategory("");
     onClose();
   };
 
@@ -141,6 +148,19 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                 We support PDF, DOCX, and text documents up to 50MB.
               </p>
 
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Category (optional)
+                </label>
+                <input
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="e.g. Health, Protection, Education"
+                  className="w-full px-4 py-3 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent"
+                  disabled={uploadState !== "idle"}
+                />
+              </div>
+
               <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
@@ -151,6 +171,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                     : "border-border hover:border-accent hover:bg-accent hover:bg-opacity-5"
                 }`}
               >
+
                 <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-lg mb-2 text-foreground">
                   Drag and drop your report here
@@ -239,6 +260,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                   className="px-6 py-3 border border-border text-foreground rounded-lg hover:bg-secondary transition-all"
                 >
                   Upload another
+
                 </button>
                 <button
                   onClick={resetAndClose}

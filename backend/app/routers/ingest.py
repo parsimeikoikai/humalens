@@ -39,6 +39,7 @@ def ingest_from_api(
 @router.post("/upload", response_model=IngestResponse)
 async def ingest_upload(
     file: UploadFile = File(...),
+    category: str | None = None,
     embedder: Embedder = Depends(get_embedder),
     vectorstore: VectorStore = Depends(get_vectorstore),
 ):
@@ -68,7 +69,9 @@ async def ingest_upload(
             "text": processor.clean_text(page["text"]),
             "source": file.filename,
             "page": page["page"],
+            "category": category,
         }
+
         for page in pages
     ]
 

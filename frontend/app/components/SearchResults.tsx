@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ExternalLink, Calendar, FileText, Languages } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
+
 import SearchFilters from "./SearchFilters";
 import { API_BASE_URL } from "@/app/lib/api/baseUrl";
 
@@ -9,11 +10,11 @@ interface SearchResultsProps {
 }
 
 interface Filters {
-  countries: string[];
   crisisTypes: string[];
   dateRange: string;
   languages: string[];
 }
+
 
 interface QueryResultItem {
   id: number;
@@ -25,11 +26,11 @@ interface QueryResultItem {
 
 export default function SearchResults({ query, onBack }: SearchResultsProps) {
   const [filters, setFilters] = useState<Filters>({
-    countries: [],
     crisisTypes: [],
     dateRange: "all",
     languages: []
   });
+
   const [answer, setAnswer] = useState("");
   const [streamSources, setStreamSources] = useState("");
   const [streamError, setStreamError] = useState("");
@@ -38,14 +39,8 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
   const [sourcesError, setSourcesError] = useState("");
   const [isLoadingSources, setIsLoadingSources] = useState(false);
 
-  const languageLabels: Record<string, string> = {
-    en: "EN",
-    fr: "FR",
-    ar: "AR",
-    es: "ES"
-  };
-
   const sourceLabels = useMemo(() => {
+
     return streamSources
       .split(",")
       .map((source) => source.trim())
@@ -62,11 +57,11 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
           .find((line) => line.startsWith("event:"))
           ?.replace("event:", "")
           .trim() || "message";
-      const data = lines
-        .filter((line) => line.startsWith("data:"))
-        .map((line) => line.replace("data:", "").trimStart())
-        .join("\n");
 
+      const data = lines
+        .filter(line => line.startsWith("data:"))
+        .map(line => line.substring(5)) // removes only "data:"
+        .join("\n");
       if (event === "message") {
         setAnswer((currentAnswer) => `${currentAnswer}${data}`);
         return;
