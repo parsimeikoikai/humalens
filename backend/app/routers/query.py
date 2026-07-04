@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from urllib.parse import urlparse
@@ -29,6 +30,7 @@ class QueryResultItem(BaseModel):
 class QueryResultsResponse(BaseModel):
     results: list[QueryResultItem]
 
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/query", tags=["query"])
@@ -52,6 +54,7 @@ DEFAULT_TOP_K = 3
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def build_context(chunks: list[dict]) -> str:
     parts = []
 
@@ -59,9 +62,7 @@ def build_context(chunks: list[dict]) -> str:
         source = chunk["metadata"].get("source", "unknown")
         page = chunk["metadata"].get("page", "?")
 
-        parts.append(
-            f"[{i}] (source: {source}, page: {page})\n{chunk['content']}"
-        )
+        parts.append(f"[{i}] (source: {source}, page: {page})\n{chunk['content']}")
 
     context = "\n\n".join(parts)
 
@@ -84,11 +85,7 @@ def format_sources(chunks: list[dict]) -> str:
         if key not in seen:
             seen.add(key)
 
-            label = (
-                f"{source} (page {page})"
-                if page
-                else source
-            )
+            label = f"{source} (page {page})" if page else source
 
             sources.append(label)
 
@@ -119,7 +116,6 @@ def get_llm_extra_headers() -> dict[str, str] | None:
 # ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
-
 @router.post("/stream")
 async def query_stream(
     payload: QueryRequest,
@@ -132,20 +128,16 @@ async def query_stream(
     # -----------------------------------------------------------------------
 
     try:
-        logger.info(
-            "Embedding question: %s",
-            payload.question[:100]
-        )
+        logger.info("Embedding question: %s", payload.question[:100])
 
         result = embedder.embed_texts([payload.question])
         question_embedding = result.embeddings[0]
 
     except Exception as e:
         logger.exception("Question embedding failed")
-
         raise HTTPException(
             status_code=500,
-            detail="Failed to embed question."
+            detail="Failed to embed question.",
         ) from e
 
     # -----------------------------------------------------------------------
@@ -162,15 +154,14 @@ async def query_stream(
 
         logger.info(
             "Retrieved %s chunks from vector store",
-            len(chunks)
+            len(chunks),
         )
 
     except Exception as e:
         logger.exception("Vector store query failed")
-
         raise HTTPException(
             status_code=500,
-            detail="Failed to retrieve context."
+            detail="Failed to retrieve context.",
         ) from e
 
     if not chunks:
@@ -178,7 +169,7 @@ async def query_stream(
         async def empty_stream():
             yield sse(
                 "message",
-                "I couldn't find any relevant information to answer your question."
+                "I couldn't find any relevant information to answer your question.",
             )
             yield sse("done", "")
 
@@ -186,6 +177,17 @@ async def query_stream(
             empty_stream(),
             media_type="text/event-stream",
         )
+
+    retrieved_documents = [
+        {
+            "id": index + 1,
+            "source": chunk["metadata"].get("source", "unknown"),
+            "page": chunk["metadata"].get("page"),
+            "excerpt": chunk["content"][:280],
+            "score": chunk.get("score", 0.0),
+        }
+        for index, chunk in enumerate(chunks)
+    ]
 
     # -----------------------------------------------------------------------
     # Build Context
@@ -206,7 +208,6 @@ async def query_stream(
 
     async def stream_response():
         try:
-
             logger.info(
                 "Sending request to LLM provider using model %s",
                 CHAT_MODEL,
@@ -222,8 +223,7 @@ async def query_stream(
                     {
                         "role": "user",
                         "content": (
-                            f"Context:\n{context}\n\n"
-                            f"Question: {payload.question}"
+                            f"Context:\n{context}\n\nQuestion: {payload.question}"
                         ),
                     },
                 ],
@@ -242,12 +242,17 @@ async def query_stream(
                 if content:
                     yield sse("message", content)
 
+            # Stream has finished — send metadata once
+            yield sse(
+                "retrieved_documents",
+                json.dumps(retrieved_documents),
+            )
+
             yield sse("sources", sources)
             yield sse("done", "")
 
         except RateLimitError as e:
             logger.exception("LLM provider rate limit error")
-
             yield sse(
                 "error",
                 f"LLM provider quota/rate limit error: {str(e)}",
@@ -255,7 +260,6 @@ async def query_stream(
 
         except APITimeoutError as e:
             logger.exception("LLM provider timeout")
-
             yield sse(
                 "error",
                 f"LLM provider timeout: {str(e)}",
@@ -263,7 +267,6 @@ async def query_stream(
 
         except APIError as e:
             logger.exception("LLM provider API error")
-
             yield sse(
                 "error",
                 f"LLM provider API error: {str(e)}",
@@ -271,7 +274,6 @@ async def query_stream(
 
         except Exception as e:
             logger.exception("Unexpected error")
-
             yield sse(
                 "error",
                 f"Unexpected error: {str(e)}",

@@ -36,8 +36,8 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
   const [streamError, setStreamError] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sources, setSources] = useState<QueryResultItem[]>([]);
-  const [sourcesError, setSourcesError] = useState("");
-  const [isLoadingSources, setIsLoadingSources] = useState(false);
+
+
 
   const sourceLabels = useMemo(() => {
 
@@ -77,10 +77,25 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
         setIsStreaming(false);
         return;
       }
+      if (event === "retrieved_documents") {
 
+        try {
+
+          setSources(JSON.parse(data));
+
+        } catch (err) {
+
+          console.error("Failed to parse retrieved documents", err);
+
+        }
+
+        return;
+
+      }
       if (event === "done") {
         setIsStreaming(false);
       }
+
     };
 
     const runQuery = async () => {
@@ -157,53 +172,7 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
     };
   }, [query]);
 
-  useEffect(() => {
-    const controller = new AbortController();
 
-    const loadSources = async () => {
-      setSourcesError("");
-      setIsLoadingSources(true);
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/query/results`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ question: query, top_k: 8 }),
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          const detail = data?.detail ?? data?.message ?? "Unable to load sources.";
-          throw new Error(detail);
-        }
-
-        const data = (await response.json()) as {
-          results: QueryResultItem[];
-        };
-
-        setSources(data.results || []);
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          return;
-        }
-
-        setSourcesError(
-          err instanceof Error ? err.message : "Unable to load sources."
-        );
-      } finally {
-        setIsLoadingSources(false);
-      }
-    };
-
-    loadSources();
-
-    return () => {
-      controller.abort();
-    };
-  }, [query]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -326,17 +295,22 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent text-accent-foreground text-sm font-semibold">
                           {source.id}
                         </span>
+
                         <span className="inline-block px-3 py-1 bg-secondary text-secondary-foreground rounded-md text-sm">
                           {source.source}
                         </span>
+
                         {source.page ? (
                           <span className="inline-block px-2 py-1 bg-accent/10 text-accent rounded text-xs">
                             Page {source.page}
                           </span>
                         ) : null}
                       </div>
+
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="text-accent">{Math.round(source.score * 100)}% match</span>
+                        <span className="text-accent">
+                          {Math.round(source.score * 100)}% match
+                        </span>
                       </div>
                     </div>
 
@@ -349,14 +323,12 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
                     </p>
                   </article>
                 ))
-              ) : sourcesError ? (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-red-200">
-                  {sourcesError}
-                </div>
-              ) : isLoadingSources ? (
-                <div className="text-sm text-slate-400">Loading source documents...</div>
               ) : (
-                <div className="text-sm text-slate-400">No sources returned yet.</div>
+                <div className="text-sm text-slate-400">
+                  {isStreaming
+                    ? "Retrieving source documents..."
+                    : "No source documents returned."}
+                </div>
               )}
             </div>
 
