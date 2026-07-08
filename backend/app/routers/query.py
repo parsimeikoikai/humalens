@@ -1,7 +1,6 @@
 import json
 import logging
-import os
-from urllib.parse import urlparse
+
 
 from openai import APIError, APITimeoutError, RateLimitError
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,11 +10,7 @@ from pydantic import BaseModel
 from app.dependencies import get_embedder, get_vectorstore
 from app.models.query import QueryRequest
 from app.services.embedder import Embedder
-from app.services.llm import (
-    client as llm_client,
-    CHAT_MODEL,
-    LLM_BASE_URL,
-)
+from app.services.llm.provider_factory import get_llm_provider
 from app.services.vectorstore import VectorStore
 
 
@@ -96,23 +91,6 @@ def sse(event: str, data: str) -> str:
     return f"event: {event}\ndata: {data}\n\n"
 
 
-def get_llm_extra_headers() -> dict[str, str] | None:
-    host = urlparse(LLM_BASE_URL).netloc.lower()
-
-    if host != "openrouter.ai":
-        return None
-
-    headers = {
-        "X-Title": "Humalens",
-    }
-
-    app_url = os.getenv("APP_URL")
-    if app_url:
-        headers["HTTP-Referer"] = app_url
-
-    return headers
-
-
 # ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
@@ -189,10 +167,6 @@ async def query_stream(
         for index, chunk in enumerate(chunks)
     ]
 
-    # -----------------------------------------------------------------------
-    # Build Context
-    # -----------------------------------------------------------------------
-
     context = build_context(chunks)
     sources = format_sources(chunks)
 
@@ -202,19 +176,13 @@ async def query_stream(
         sources,
     )
 
-    # -----------------------------------------------------------------------
-    # Stream Response
-    # -----------------------------------------------------------------------
-
     async def stream_response():
         try:
-            logger.info(
-                "Sending request to LLM provider using model %s",
-                CHAT_MODEL,
-            )
+            llm_provider = get_llm_provider()
 
-            response = await llm_client.chat.completions.create(
-                model=CHAT_MODEL,
+            logger.info("Sending request to configured LLM provider")
+
+            response = await llm_provider.stream_chat(
                 messages=[
                     {
                         "role": "system",
@@ -227,10 +195,8 @@ async def query_stream(
                         ),
                     },
                 ],
-                max_tokens=512,
                 temperature=0,
-                stream=True,
-                extra_headers=get_llm_extra_headers(),
+                max_tokens=512,
             )
 
             async for chunk in response:
@@ -283,7 +249,6 @@ async def query_stream(
         stream_response(),
         media_type="text/event-stream",
     )
-
 
 @router.post("/results", response_model=QueryResultsResponse)
 async def query_results(
