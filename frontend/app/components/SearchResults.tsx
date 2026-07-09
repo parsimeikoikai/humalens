@@ -111,7 +111,7 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
             accept: "text/event-stream",
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ question: query }),
+          body: JSON.stringify({ question: query, top_k: 3 }),
           signal: controller.signal,
         });
 

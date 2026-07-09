@@ -1,7 +1,7 @@
 import os
 from tempfile import NamedTemporaryFile
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter,File, Depends,Form, HTTPException, UploadFile
 
 from app.dependencies import get_embedder, get_vectorstore
 from app.services.embedder import Embedder
@@ -39,7 +39,7 @@ def ingest_from_api(
 @router.post("/upload", response_model=IngestResponse)
 async def ingest_upload(
     file: UploadFile = File(...),
-    category: str | None = None,
+    category: str = Form("General"),
     embedder: Embedder = Depends(get_embedder),
     vectorstore: VectorStore = Depends(get_vectorstore),
 ):

@@ -13,7 +13,7 @@ import {
 import { API_BASE_URL } from "@/app/lib/api/baseUrl";
 
 interface HeroProps {
-  onSearch: (query: string) => void;
+  onSearch: (query: string, topK: number) => void;
   onUploadClick: () => void;
   onLoginClick: () => void;
   isAuthenticated: boolean;
@@ -37,12 +37,19 @@ export default function Hero({
   });
   const [isStatsLoading, setIsStatsLoading] = useState(true);
 
+
+const [topK, setTopK] = useState(3);
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (query.trim()) {
-      onSearch(query);
-    }
-  };
+
+  e.preventDefault();
+
+  if (query.trim()) {
+
+    onSearch(query, topK);
+
+  }
+
+};
 
   useEffect(() => {
     const controller = new AbortController();
@@ -132,6 +139,26 @@ export default function Hero({
               Search
             </button>
           </div>
+          <div className="mt-4 flex items-center justify-end gap-2">
+  <label
+    htmlFor="topK"
+    className="text-sm text-muted-foreground"
+  >
+    Top K
+  </label>
+
+  <select
+    id="topK"
+    value={topK}
+    onChange={(e) => setTopK(Number(e.target.value))}
+    className="rounded-md border border-border bg-card px-3 py-2 text-sm"
+  >
+    <option value={3}>3</option>
+    <option value={5}>5</option>
+    <option value={8}>8</option>
+    <option value={10}>10</option>
+  </select>
+</div>
 
           {/* Badges */}
           <div className="flex items-center justify-center gap-3 mt-7 flex-wrap">
