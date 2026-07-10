@@ -21,6 +21,8 @@ interface NavbarProps {
   onRegisterClick: () => void;
   user: User | null;
   onLogout: () => void;
+  onKBClick: () => void;
+  activeView: string;
 }
 
 export default function Navbar({
@@ -29,22 +31,30 @@ export default function Navbar({
   onRegisterClick,
   user,
   onLogout,
+  onKBClick,
+  activeView,
 }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(e.target as Node)
-      ) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  const navLinks = [
+    { label: "Home", view: "home", onClick: () => {} },
+    {
+      label: "Knowledge Bases",
+      view: "knowledge-bases",
+      onClick: onKBClick,
+    },
+  ];
 
   const initials = user
     ? user.name
@@ -59,18 +69,42 @@ export default function Navbar({
     <nav className="border-b border-border bg-card sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-            <Zap className="w-4.5 h-4.5 text-accent-foreground" />
+        <div className="flex items-center gap-5">
+          <div
+            className="flex items-center gap-2.5 cursor-pointer"
+            onClick={() => navLinks[0].onClick()}
+          >
+            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+              <Zap className="w-4 h-4 text-accent-foreground" />
+            </div>
+            <span className="font-semibold text-xl text-foreground tracking-tight">
+              Humalens
+            </span>
           </div>
-          <span className="font-semibold text-xl text-foreground tracking-tight">Humalens</span>
-          <span className="hidden sm:inline text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-            AI Retrieval
-          </span>
-        </div>
 
-        {/* Nav links */}
-   
+          {/* Nav links */}
+          <div className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => (
+              <button
+                key={link.view}
+                onClick={link.onClick}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  activeView === link.view
+                    ? "bg-secondary text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                }`}
+              >
+                {link.label}
+              </button>
+            ))}
+            <a
+              href="#"
+              className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            >
+              Docs
+            </a>
+          </div>
+        </div>
 
         {/* Auth area */}
         <div className="flex items-center gap-3">
@@ -96,27 +130,46 @@ export default function Navbar({
                     {initials}
                   </div>
                   <div className="hidden sm:block text-left">
-                    <p className="text-sm font-medium text-foreground leading-none">{user.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-none">{user.email}</p>
+                    <p className="text-sm font-medium text-foreground leading-none">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-none">
+                      {user.email}
+                    </p>
                   </div>
                   <ChevronDown
-                    className={`w-4 h-4 text-muted-foreground transition-transform ${menuOpen ? "rotate-180" : ""}`}
+                    className={`w-4 h-4 text-muted-foreground transition-transform ${
+                      menuOpen ? "rotate-180" : ""
+                    }`}
                   />
                 </button>
 
                 {menuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50">
                     <div className="px-4 py-3 border-b border-border">
-                      <p className="text-sm font-medium text-foreground">{user.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {user.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {user.email}
+                      </p>
                     </div>
                     <div className="py-1">
-                      <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors">
+                      <button
+                        onClick={() => {
+                          onKBClick();
+                          setMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
+                      >
                         <FolderOpen className="w-4 h-4 text-muted-foreground" />
                         My Knowledge Bases
                       </button>
                       <button
-                        onClick={onUploadClick}
+                        onClick={() => {
+                          onUploadClick();
+                          setMenuOpen(false);
+                        }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
                       >
                         <Upload className="w-4 h-4 text-muted-foreground" />
@@ -165,5 +218,4 @@ export default function Navbar({
     </nav>
   );
 }
-
 

@@ -4,6 +4,7 @@ import Footer from "./components/Footer";
 import Hero from "./components/Hero";
 import Navbar from "./components/Navbar";
 import RecentReports from "./components/RecentReports";
+import KnowledgeBases from "./components/KnowledgeBases";
 import UploadModal from "./components/UploadModal";
 import SearchResults from "./components/SearchResults";
 import AuthModal from "./components/AuthModal";
@@ -14,6 +15,8 @@ interface User {
 }
 
 type AuthModalMode = "login" | "register" | null;
+type View = "home" | "search" | "knowledge-bases";
+
 const AUTH_USER_STORAGE_KEY = "humalens:auth-user";
 
 const readStoredUser = (): User | null => {
@@ -41,7 +44,7 @@ export default function Home() {
   const [authModal, setAuthModal] = useState<AuthModalMode>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string | null>(null);
-
+const [view, setView] = useState<View>("home");
   const handleUploadClick = useCallback(() => {
     if (!user) {
       setAuthModal("login");
@@ -68,8 +71,18 @@ export default function Home() {
     };
   }, [handleUploadClick]);
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
+const handleSearch = (
+  query: string,
+  _topK: number
+) => {
+  setSearchQuery(query);
+};
+   const handleKBNav = () => {
+    if (!user) {
+      setAuthModal("login");
+      return;
+    }
+    setView("knowledge-bases");
   };
 
   const handleAuth = (authenticatedUser: User) => {
@@ -109,20 +122,31 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar
-        onUploadClick={handleUploadClick}
-        onLoginClick={() => setAuthModal("login")}
-        onRegisterClick={() => setAuthModal("register")}
-        user={user}
-        onLogout={handleLogout}
-      />
-      <Hero
-        onSearch={handleSearch}
-        onUploadClick={handleUploadClick}
-        onLoginClick={() => setAuthModal("login")}
-        isAuthenticated={!!user}
-      />
-      <RecentReports />
+         <Navbar
+          onUploadClick={handleUploadClick}
+          onLoginClick={() => setAuthModal("login")}
+          onRegisterClick={() => setAuthModal("register")}
+          user={user}
+          onLogout={() => { setUser(null); setView("home"); }}
+          onKBClick={handleKBNav}
+          activeView={view}
+        />
+      {view === "knowledge-bases" ? (
+        <KnowledgeBases
+          onQuery={(q) => setSearchQuery(q)}
+          onUploadClick={handleUploadClick}
+        />
+      ) : (
+        <>
+          <Hero
+            onSearch={handleSearch}
+            onUploadClick={handleUploadClick}
+            onLoginClick={() => setAuthModal("login")}
+            isAuthenticated={!!user}
+          />
+          <RecentReports />
+        </>
+      )}
       <Footer />
 
       <UploadModal

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import List
-import os 
+import os
 import chromadb
 
 logger = logging.getLogger(__name__)
@@ -21,11 +21,14 @@ class VectorStore:
         collection_name: str = "documents",
     ) -> None:
         # self._client = chromadb.HttpClient(host=host, port=port)
-        self._client = chromadb.PersistentClient(path=os.getenv("CHROMA_PATH", "./chroma_db")
-)
+        self._client = chromadb.PersistentClient(
+            path=os.getenv("CHROMA_PATH", "./chroma_db")
+        )
         self._collection = self._client.get_or_create_collection(
             name=collection_name,
-            metadata={"hnsw:space": "cosine"},  # matches normalize_embeddings=True in Embedder
+            metadata={
+                "hnsw:space": "cosine"
+            },  # matches normalize_embeddings=True in Embedder
         )
         logger.info(f"VectorStore connected — collection: '{collection_name}'")
 
@@ -51,27 +54,28 @@ class VectorStore:
         if not embedded_chunks:
             return 0
 
-        ids         = []
-        embeddings  = []
-        documents   = []
-        metadatas   = []
+        ids = []
+        embeddings = []
+        documents = []
+        metadatas = []
 
         for chunk in embedded_chunks:
-            doc_id   = chunk["metadata"]["doc_id"]
+            doc_id = chunk["metadata"]["doc_id"]
             chunk_id = chunk["metadata"]["chunk_id"]
 
             ids.append(f"{doc_id}_{chunk_id}")
             embeddings.append(chunk["embedding"])
             documents.append(chunk["content"])
-            metadatas.append({
-                "doc_id":    doc_id,
-                "chunk_id":  chunk_id,
-                "page":      chunk["metadata"]["page"],
-                "source":    chunk["source"],
-                "timestamp": chunk["metadata"]["timestamp"],
-                "category": chunk["metadata"].get("category"),
-            })
-
+            metadatas.append(
+                {
+                    "doc_id": doc_id,
+                    "chunk_id": chunk_id,
+                    "page": chunk["metadata"]["page"],
+                    "source": chunk["source"],
+                    "timestamp": chunk["metadata"]["timestamp"],
+                    "category": chunk["metadata"].get("category") or "General",
+                }
+            )
 
         self._collection.upsert(
             ids=ids,
@@ -104,10 +108,12 @@ class VectorStore:
             results["metadatas"][0],
             results["distances"][0],
         ):
-            matches.append({
-                "content":  doc,
-                "metadata": meta,
-                "score":    round(1 - dist, 4),  # cosine distance → similarity score
-            })
+            matches.append(
+                {
+                    "content": doc,
+                    "metadata": meta,
+                    "score": round(1 - dist, 4),  # cosine distance → similarity score
+                }
+            )
 
         return matches
