@@ -20,7 +20,7 @@ class VectorStore:
         port: int = int(os.getenv("CHROMA_PORT", "8001")),
         collection_name: str = "documents",
     ) -> None:
-        # self._client = chromadb.HttpClient(host=host, port=port)
+       
         self._client = chromadb.PersistentClient(
             path=os.getenv("CHROMA_PATH", "./chroma_db")
         )
@@ -28,7 +28,7 @@ class VectorStore:
             name=collection_name,
             metadata={
                 "hnsw:space": "cosine"
-            },  # matches normalize_embeddings=True in Embedder
+            }, 
         )
         logger.info(f"VectorStore connected — collection: '{collection_name}'")
 
