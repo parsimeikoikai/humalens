@@ -11,6 +11,10 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str = ""
 
+    JWT_SECRET_KEY: str = "dev-secret-change-me"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 60 * 24 * 7
+
     EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     # In case you want to point to an on-disk Chroma directory when not using Docker

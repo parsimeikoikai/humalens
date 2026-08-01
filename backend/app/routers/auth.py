@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.services.auth_tokens import create_access_token
 from app.services.password import hash_password, verify_password
 
 
@@ -31,6 +32,8 @@ class AuthResponse(BaseModel):
     id: int
     email: EmailStr
     message: str
+    access_token: str
+    token_type: str = "bearer"
 
 
 class MessageResponse(BaseModel):
@@ -55,7 +58,12 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)) -> Au
     db.commit()
     db.refresh(user)
 
-    return AuthResponse(id=user.id, email=user.email, message="User registered successfully")
+    return AuthResponse(
+        id=user.id,
+        email=user.email,
+        message="User registered successfully",
+        access_token=create_access_token(user.id),
+    )
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -66,7 +74,12 @@ def login_user(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthResp
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
-    return AuthResponse(id=user.id, email=user.email, message="Login successful")
+    return AuthResponse(
+        id=user.id,
+        email=user.email,
+        message="Login successful",
+        access_token=create_access_token(user.id),
+    )
 
 
 @router.post("/forgot-password", response_model=MessageResponse)

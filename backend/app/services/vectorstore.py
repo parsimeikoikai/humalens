@@ -91,7 +91,12 @@ class VectorStore:
     # Query
     # --------------------------------------------------
 
-    def query(self, embedding: List[float], n_results: int = 5) -> List[dict]:
+    def query(
+        self,
+        embedding: List[float],
+        n_results: int = 5,
+        where: dict | None = None,
+    ) -> List[dict]:
         """
         Query ChromaDB with an embedding vector.
         Returns ranked list of matching chunks with their metadata.
@@ -99,6 +104,7 @@ class VectorStore:
         results = self._collection.query(
             query_embeddings=[embedding],
             n_results=n_results,
+            where=where,
             include=["documents", "metadatas", "distances"],
         )
 

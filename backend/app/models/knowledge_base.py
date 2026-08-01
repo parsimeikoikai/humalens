@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.sql import func
+from pydantic import BaseModel
 
 from app.database import Base
 
@@ -27,3 +28,15 @@ class KnowledgeBase(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class CreateKnowledgeBaseRequest(BaseModel):
+    name: str
+    description: str | None = None
+    visibility: str = "private"
+
+
+class UpdateKnowledgeBaseRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    visibility: str | None = None

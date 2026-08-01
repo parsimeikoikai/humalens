@@ -11,8 +11,6 @@ interface SearchResultsProps {
 
 interface Filters {
   crisisTypes: string[];
-  dateRange: string;
-  languages: string[];
 }
 
 
@@ -22,13 +20,12 @@ interface QueryResultItem {
   page?: number | null;
   excerpt: string;
   score: number;
+  category?: string | null;
 }
 
 export default function SearchResults({ query, onBack }: SearchResultsProps) {
   const [filters, setFilters] = useState<Filters>({
-    crisisTypes: [],
-    dateRange: "all",
-    languages: []
+    crisisTypes: []
   });
 
   const [answer, setAnswer] = useState("");
@@ -111,7 +108,11 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
             accept: "text/event-stream",
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ question: query, top_k: 3 }),
+          body: JSON.stringify({
+            question: query,
+            top_k: 3,
+            crisis_types: filters.crisisTypes.length > 0 ? filters.crisisTypes : undefined,
+          }),
           signal: controller.signal,
         });
 
@@ -170,7 +171,8 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
     return () => {
       controller.abort();
     };
-  }, [query]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, filters.crisisTypes.join(",")]);
 
 
 
@@ -279,7 +281,9 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
             <div className="mb-6">
               <h2 className="text-2xl mb-2 text-foreground">Source Reports</h2>
               <p className="text-muted-foreground">
-                {sources.length} reports found • Sorted by relevance
+                {isStreaming && sources.length === 0
+                  ? "Retrieving source documents..."
+                  : `${sources.length} reports found • Sorted by relevance`}
               </p>
             </div>
 
@@ -303,6 +307,12 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
                         {source.page ? (
                           <span className="inline-block px-2 py-1 bg-accent/10 text-accent rounded text-xs">
                             Page {source.page}
+                          </span>
+                        ) : null}
+
+                        {source.category ? (
+                          <span className="inline-block px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs">
+                            {source.category}
                           </span>
                         ) : null}
                       </div>

@@ -20,6 +20,7 @@ class QueryResultItem(BaseModel):
     page: int | None = None
     excerpt: str
     score: float
+    category: str | None = None
 
 
 class QueryResultsResponse(BaseModel):

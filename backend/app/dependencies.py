@@ -1,10 +1,18 @@
 from functools import lru_cache
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
+from app.database import get_db
+from app.models.user import User
+from app.services.auth_tokens import decode_access_token
 from app.services.embedder import Embedder
 from app.services.rag import RAGService
 from app.services.vectorstore import VectorStore
+from app.services.knowledge_base_service import KnowledgeBaseService
+
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 @lru_cache(maxsize=1)
@@ -25,3 +33,38 @@ def get_rag_service(
         embedder=embedder,
         vectorstore=vectorstore,
     )
+
+
+def get_knowledge_base_service(
+    session: Session = Depends(get_db),
+) -> KnowledgeBaseService:
+    return KnowledgeBaseService(session)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    session: Session = Depends(get_db),
+) -> User:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    user_id = decode_access_token(credentials.credentials)
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
+    user = session.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    return user

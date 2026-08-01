@@ -43,10 +43,17 @@ class RAGService:
 
         top_k = payload.top_k or DEFAULT_TOP_K
 
+        where = (
+            {"category": {"$in": payload.crisis_types}}
+            if payload.crisis_types
+            else None
+        )
+
         try:
             chunks = self.vectorstore.query(
                 question_embedding,
                 n_results=top_k,
+                where=where,
             )
 
             logger.info(
@@ -69,6 +76,7 @@ class RAGService:
                 "page": chunk["metadata"].get("page"),
                 "excerpt": chunk["content"][:280],
                 "score": chunk.get("score", 0.0),
+                "category": chunk["metadata"].get("category", "General"),
             }
             for index, chunk in enumerate(chunks)
         ]

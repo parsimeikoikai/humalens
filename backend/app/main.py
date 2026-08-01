@@ -27,11 +27,13 @@ def create_app():
     from app.routers.query import router as query_router
     from app.routers.auth import router as auth_router
     from app.routers.admin import router as admin_router
+    from app.routers.knowledge_base import router as knowledge_base_router
 
     app.include_router(ingest_router)
     app.include_router(query_router)
     app.include_router(auth_router)
     app.include_router(admin_router)
+    app.include_router(knowledge_base_router)
 
     return app
 
