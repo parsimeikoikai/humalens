@@ -1,6 +1,7 @@
 import logging
 
 import os
+from functools import lru_cache
 
 from app.services.llm.base import BaseLLMProvider
 from app.services.llm.ollama_provider import OllamaProvider
@@ -15,6 +16,7 @@ LLM_PROVIDER = os.getenv(
 
 logger = logging.getLogger(__name__)
 
+@lru_cache(maxsize=1)
 def get_llm_provider() -> BaseLLMProvider:
     """
     Returns the configured LLM provider.

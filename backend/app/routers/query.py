@@ -62,7 +62,7 @@ async def query_stream(
 
     # -----------------------------------------------------------------------
 
-    retrieval = rag_service.retrieve(payload)
+    retrieval = await rag_service.retrieve(payload)
 
     context = retrieval["context"]
 
@@ -157,7 +157,7 @@ async def query_results(
     rag_service: RAGService = Depends(get_rag_service),
 ) -> QueryResultsResponse:
 
-    retrieval = rag_service.retrieve(payload)
+    retrieval = await rag_service.retrieve(payload)
 
     return QueryResultsResponse(
         results=[

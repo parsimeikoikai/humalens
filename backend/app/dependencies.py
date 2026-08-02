@@ -8,6 +8,8 @@ from app.database import get_db
 from app.models.user import User
 from app.services.auth_tokens import decode_access_token
 from app.services.embedder import Embedder
+from app.services.llm.base import BaseLLMProvider
+from app.services.llm.provider_factory import get_llm_provider
 from app.services.rag import RAGService
 from app.services.vectorstore import VectorStore
 from app.services.knowledge_base_service import KnowledgeBaseService
@@ -28,10 +30,12 @@ def get_vectorstore() -> VectorStore:
 def get_rag_service(
     embedder: Embedder = Depends(get_embedder),
     vectorstore: VectorStore = Depends(get_vectorstore),
+    llm_provider: BaseLLMProvider = Depends(get_llm_provider),
 ) -> RAGService:
     return RAGService(
         embedder=embedder,
         vectorstore=vectorstore,
+        llm_provider=llm_provider,
     )
 
 

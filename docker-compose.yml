@@ -41,6 +41,7 @@ services:
 
     volumes:
       - ./backend:/app
+      - fastembed_cache:/root/.cache/fastembed
 
   chromadb:
     image: chromadb/chroma:0.5.23
@@ -69,3 +70,4 @@ volumes:
   chroma_data:
   postgres_data:
   node_modules_frontend:
+  fastembed_cache:
