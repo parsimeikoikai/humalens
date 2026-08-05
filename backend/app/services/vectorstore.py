@@ -16,6 +16,27 @@ def _tokenize(text: str) -> List[str]:
     return _TOKEN_PATTERN.findall(text.lower())
 
 
+def build_where(**conditions) -> dict | None:
+    """Assemble a Chroma `where` filter, dropping None conditions.
+
+    Chroma only accepts a bare `{key: value}` mapping when there is exactly
+    one condition — two or more have to be wrapped in `$and`.
+    """
+    clauses = [
+        {key: value}
+        for key, value in conditions.items()
+        if value is not None
+    ]
+
+    if not clauses:
+        return None
+
+    if len(clauses) == 1:
+        return clauses[0]
+
+    return {"$and": clauses}
+
+
 class VectorStore:
     """
     Thin wrapper around ChromaDB.
@@ -71,19 +92,28 @@ class VectorStore:
             doc_id = chunk["metadata"]["doc_id"]
             chunk_id = chunk["metadata"]["chunk_id"]
 
+            metadata = {
+                "doc_id": doc_id,
+                "chunk_id": chunk_id,
+                "page": chunk["metadata"]["page"],
+                "source": chunk["source"],
+                "timestamp": chunk["metadata"]["timestamp"],
+                "category": chunk["metadata"].get("category") or "General",
+            }
+
+            # Tenancy keys. Chroma rejects None values, so only set what we
+            # actually have — chunks ingested through the unauthenticated
+            # /ingest/api path carry no owner and stay unreachable from the
+            # owner-scoped query path.
+            for key in ("owner_id", "knowledge_base_id", "document_id"):
+                value = chunk["metadata"].get(key)
+                if value is not None:
+                    metadata[key] = value
+
             ids.append(f"{doc_id}_{chunk_id}")
             embeddings.append(chunk["embedding"])
             documents.append(chunk["content"])
-            metadatas.append(
-                {
-                    "doc_id": doc_id,
-                    "chunk_id": chunk_id,
-                    "page": chunk["metadata"]["page"],
-                    "source": chunk["source"],
-                    "timestamp": chunk["metadata"]["timestamp"],
-                    "category": chunk["metadata"].get("category") or "General",
-                }
-            )
+            metadatas.append(metadata)
 
         self._collection.upsert(
             ids=ids,
@@ -94,6 +124,28 @@ class VectorStore:
 
         logger.info(f"Stored {len(ids)} chunks into ChromaDB")
         return len(ids)
+
+    # --------------------------------------------------
+    # Delete
+    # --------------------------------------------------
+
+    def delete(self, where: dict) -> None:
+        """Remove every chunk matching `where`.
+
+        `where` is required — an empty filter would wipe the collection.
+        """
+        if not where:
+            raise ValueError("delete() requires a non-empty `where` filter")
+
+        self._collection.delete(where=where)
+        logger.info(f"Deleted chunks matching {where}")
+
+    def count(self, where: dict | None = None) -> int:
+        if where is None:
+            return self._collection.count()
+
+        results = self._collection.get(where=where, include=[])
+        return len(results["ids"])
 
     # --------------------------------------------------
     # Query

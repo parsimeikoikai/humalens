@@ -61,11 +61,30 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ## API endpoints
 
+All endpoints below except `/auth/register` and `/auth/login` require a
+`Authorization: Bearer <token>` header. A user can only ever see, query or
+modify their own knowledge bases.
+
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/documents/upload` | Upload and index document |
-| POST | `/ingest` | Generic ingestion pipeline |
-| GET | `/query/stream` | Ask a question (streaming RAG response) |
+| POST | `/auth/register` | Create an account (returns a JWT) |
+| POST | `/auth/login` | Sign in (returns a JWT) |
+| GET | `/auth/me` | Current user — used to restore a session from a stored token |
+| GET | `/knowledge-bases` | List your knowledge bases with document stats |
+| POST | `/knowledge-bases` | Create a knowledge base |
+| GET | `/knowledge-bases/{id}` | Fetch a single knowledge base |
+| PATCH | `/knowledge-bases/{id}` | Rename, re-tag or change visibility |
+| DELETE | `/knowledge-bases/{id}` | Delete it, its documents, files and embeddings |
+| GET | `/knowledge-bases/{id}/documents` | List documents in a knowledge base |
+| POST | `/knowledge-bases/{id}/documents` | Upload and index a document (PDF/DOCX/TXT, ≤50MB) |
+| DELETE | `/knowledge-bases/{id}/documents/{doc_id}` | Delete a document and its chunks |
+| POST | `/ingest/api?knowledge_base_id=` | Ingest raw text into a knowledge base |
+| POST | `/query/stream` | Ask a question (streaming RAG response) |
+| POST | `/query/results` | Retrieve matching chunks without generating an answer |
+
+Retrieval is scoped by `owner_id` on every chunk, so queries only ever reach
+the caller's own documents. Pass `knowledge_base_id` in the query body to
+narrow a search to a single collection.
 
 ---
 

@@ -1,135 +1,101 @@
+"use client";
+
 import { useState } from "react";
 import {
   Plus, FolderOpen, FileText, Globe, Lock, MoreHorizontal,
   Search, Upload, Trash2, Pencil, ExternalLink, Database,
-  TrendingUp, Clock, CheckCircle,
+  Clock, CheckCircle, AlertCircle, Loader2,
 } from "lucide-react";
 import CreateKBModal from "./CreateKBModal";
+import DeleteKBDialog from "./DeleteKBDialog";
+import {
+  useDeleteKnowledgeBaseMutation,
+  useListKnowledgeBasesQuery,
+  type KnowledgeBase,
+} from "@/app/services/api/knowledgeBaseApi";
 
-
-interface KnowledgeBase {
-  id: string;
-  name: string;
-  description: string;
-  docCount: number;
-  sizeLabel: string;
-  updatedAt: string;
-  createdAt: string;
-  isPublic: boolean;
-  tags: string[];
-  status: "ready" | "indexing" | "error";
-  queryCount: number;
-}
-
-const INITIAL_KBS: KnowledgeBase[] = [
-  {
-    id: "1",
-    name: "Legal Contracts",
-    description: "NDA agreements, vendor contracts, SLAs, and amendment history across all active engagements.",
-    docCount: 148,
-    sizeLabel: "312 MB",
-    updatedAt: "Jun 18, 2026",
-    createdAt: "Jan 5, 2026",
-    isPublic: false,
-    tags: ["Legal", "Contracts"],
-    status: "ready",
-    queryCount: 427,
-  },
-  {
-    id: "2",
-    name: "Research Papers — ML & Retrieval",
-    description: "Curated collection of papers on dense retrieval, RAG architectures, and embedding methods.",
-    docCount: 312,
-    sizeLabel: "1.2 GB",
-    updatedAt: "Jun 15, 2026",
-    createdAt: "Mar 12, 2026",
-    isPublic: true,
-    tags: ["Research", "AI/ML"],
-    status: "ready",
-    queryCount: 1840,
-  },
-  {
-    id: "3",
-    name: "Product Roadmap Docs",
-    description: "PRDs, spec sheets, design briefs, and meeting notes for active product initiatives.",
-    docCount: 67,
-    sizeLabel: "89 MB",
-    updatedAt: "Jun 20, 2026",
-    createdAt: "Feb 28, 2026",
-    isPublic: false,
-    tags: ["Product", "Internal"],
-    status: "ready",
-    queryCount: 203,
-  },
-  {
-    id: "4",
-    name: "Financial Reports Q1–Q2 2026",
-    description: "Quarterly earnings, analyst reports, P&L statements, and board presentation decks.",
-    docCount: 34,
-    sizeLabel: "145 MB",
-    updatedAt: "Jun 21, 2026",
-    createdAt: "Apr 1, 2026",
-    isPublic: false,
-    tags: ["Finance", "Reports"],
-    status: "indexing",
-    queryCount: 88,
-  },
-];
-
-const statusConfig = {
+const statusConfig: Record<
+  KnowledgeBase["status"],
+  { label: string; color: string; bg: string; dot: string }
+> = {
   ready: { label: "Ready", color: "text-green-600", bg: "bg-green-50", dot: "bg-green-500" },
   indexing: { label: "Indexing…", color: "text-amber-600", bg: "bg-amber-50", dot: "bg-amber-400 animate-pulse" },
-  error: { label: "Error", color: "text-destructive", bg: "bg-destructive/8", dot: "bg-destructive" },
+  empty: { label: "Empty", color: "text-muted-foreground", bg: "bg-secondary", dot: "bg-muted-foreground" },
+  failed: { label: "Failed", color: "text-destructive", bg: "bg-destructive/8", dot: "bg-destructive" },
 };
 
+const formatBytes = (bytes: number): string => {
+  if (!bytes) return "0 MB";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+};
+
+const formatDate = (value: string | null): string => {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const errorMessage = (error: unknown, fallback: string): string =>
+  (error as { data?: { detail?: string } })?.data?.detail ?? fallback;
+
 interface KnowledgeBasesProps {
-  onQuery: (query: string) => void;
-  onUploadClick: () => void;
+  /** Scope the next search to this knowledge base. */
+  onQuery: (knowledgeBaseId: number) => void;
+  onUploadClick: (knowledgeBaseId?: number) => void;
 }
 
 export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBasesProps) {
-  const [kbs, setKbs] = useState<KnowledgeBase[]>(INITIAL_KBS);
+  const { data: kbs = [], isLoading, isError, error, refetch } =
+    useListKnowledgeBasesQuery();
+  const [deleteKnowledgeBase, { isLoading: isDeleting }] =
+    useDeleteKnowledgeBaseMutation();
+
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [editing, setEditing] = useState<KnowledgeBase | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<KnowledgeBase | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "private" | "public">("all");
 
   const filtered = kbs.filter((kb) => {
+    const term = search.toLowerCase();
     const matchesSearch =
-      kb.name.toLowerCase().includes(search.toLowerCase()) ||
-      kb.description.toLowerCase().includes(search.toLowerCase()) ||
-      kb.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
+      kb.name.toLowerCase().includes(term) ||
+      (kb.description ?? "").toLowerCase().includes(term) ||
+      kb.tags.some((t) => t.toLowerCase().includes(term));
     const matchesFilter =
       filter === "all" ||
-      (filter === "public" && kb.isPublic) ||
-      (filter === "private" && !kb.isPublic);
+      (filter === "public" && kb.visibility === "public") ||
+      (filter === "private" && kb.visibility === "private");
     return matchesSearch && matchesFilter;
   });
 
-  const totalDocs = kbs.reduce((s, kb) => s + kb.docCount, 0);
-  const totalQueries = kbs.reduce((s, kb) => s + kb.queryCount, 0);
+  const totalDocs = kbs.reduce((sum, kb) => sum + kb.document_count, 0);
+  const totalChunks = kbs.reduce((sum, kb) => sum + kb.chunk_count, 0);
 
-  const handleCreate = (data: { name: string; description: string; isPublic: boolean; tags: string[] }) => {
-    const newKb: KnowledgeBase = {
-      id: String(Date.now()),
-      name: data.name,
-      description: data.description,
-      docCount: 0,
-      sizeLabel: "0 MB",
-      updatedAt: "Just now",
-      createdAt: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      isPublic: data.isPublic,
-      tags: data.tags,
-      status: "ready",
-      queryCount: 0,
-    };
-    setKbs([newKb, ...kbs]);
-    setIsCreateOpen(false);
-  };
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
 
-  const handleDelete = (id: string) => {
-    setKbs(kbs.filter((kb) => kb.id !== id));
-    setOpenMenu(null);
+    setDeleteError("");
+
+    try {
+      await deleteKnowledgeBase(pendingDelete.id).unwrap();
+      setPendingDelete(null);
+    } catch (err) {
+      setDeleteError(
+        errorMessage(err, "Could not delete this knowledge base. Please try again.")
+      );
+    }
   };
 
   return (
@@ -159,7 +125,7 @@ export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBase
             {[
               { icon: Database, label: "Knowledge Bases", value: kbs.length },
               { icon: FileText, label: "Total Documents", value: totalDocs.toLocaleString() },
-              { icon: TrendingUp, label: "Queries Run", value: totalQueries.toLocaleString() },
+              { icon: Search, label: "Indexed Chunks", value: totalChunks.toLocaleString() },
               { icon: CheckCircle, label: "Ready", value: kbs.filter((k) => k.status === "ready").length },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-background border border-border rounded-xl px-5 py-4">
@@ -208,21 +174,51 @@ export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBase
           </div>
         </div>
 
+        {/* Loading */}
+        {isLoading && (
+          <div className="flex items-center justify-center gap-2 py-20 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm">Loading your knowledge bases…</span>
+          </div>
+        )}
+
+        {/* Load failure */}
+        {isError && !isLoading && (
+          <div className="text-center py-20 border border-dashed border-destructive/30 rounded-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-destructive/8 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-7 h-7 text-destructive" />
+            </div>
+            <p className="text-foreground font-medium mb-1">
+              Could not load your knowledge bases
+            </p>
+            <p className="text-sm text-muted-foreground mb-5">
+              {errorMessage(error, "Check that the API is reachable and try again.")}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-border rounded-xl
+                         text-sm font-medium text-foreground hover:bg-secondary transition-all"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Empty state */}
-        {filtered.length === 0 && (
+        {!isLoading && !isError && filtered.length === 0 && (
           <div className="text-center py-20 border border-dashed border-border rounded-2xl">
             <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
               <FolderOpen className="w-7 h-7 text-muted-foreground" />
             </div>
             <p className="text-foreground font-medium mb-1">
-              {search ? "No results found" : "No knowledge bases yet"}
+              {search || kbs.length > 0 ? "No results found" : "No knowledge bases yet"}
             </p>
             <p className="text-sm text-muted-foreground mb-5">
-              {search
+              {search || kbs.length > 0
                 ? "Try a different search term or filter."
                 : "Create your first knowledge base to start querying your documents."}
             </p>
-            {!search && (
+            {!search && kbs.length === 0 && (
               <button
                 onClick={() => setIsCreateOpen(true)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-accent-foreground
@@ -236,10 +232,12 @@ export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBase
         )}
 
         {/* KB cards grid */}
-        {filtered.length > 0 && (
+        {!isLoading && !isError && filtered.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {filtered.map((kb) => {
-              const status = statusConfig[kb.status];
+              const status = statusConfig[kb.status] ?? statusConfig.empty;
+              const isEmpty = kb.document_count === 0;
+
               return (
                 <article
                   key={kb.id}
@@ -259,8 +257,11 @@ export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBase
                         {status.label}
                       </span>
                       {/* Visibility */}
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        {kb.isPublic
+                      <span
+                        className="text-xs text-muted-foreground flex items-center gap-1"
+                        title={kb.visibility === "public" ? "Public" : "Private"}
+                      >
+                        {kb.visibility === "public"
                           ? <Globe className="w-3.5 h-3.5" />
                           : <Lock className="w-3.5 h-3.5" />}
                       </span>
@@ -269,6 +270,7 @@ export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBase
                         <button
                           onClick={() => setOpenMenu(openMenu === kb.id ? null : kb.id)}
                           className="p-1 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+                          aria-label={`Actions for ${kb.name}`}
                         >
                           <MoreHorizontal className="w-4 h-4" />
                         </button>
@@ -276,26 +278,33 @@ export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBase
                           <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border
                                           rounded-xl shadow-lg overflow-hidden z-20">
                             <button
-                              onClick={() => { onQuery(`Search in ${kb.name}`); setOpenMenu(null); }}
-                              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
+                              onClick={() => { onQuery(kb.id); setOpenMenu(null); }}
+                              disabled={isEmpty}
+                              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground
+                                         hover:bg-secondary transition-colors disabled:opacity-40
+                                         disabled:cursor-not-allowed"
                             >
                               <Search className="w-4 h-4 text-muted-foreground" /> Query
                             </button>
                             <button
-                              onClick={() => { onUploadClick(); setOpenMenu(null); }}
+                              onClick={() => { onUploadClick(kb.id); setOpenMenu(null); }}
                               className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
                             >
                               <Upload className="w-4 h-4 text-muted-foreground" /> Upload docs
                             </button>
                             <button
-                              onClick={() => setOpenMenu(null)}
+                              onClick={() => { setEditing(kb); setOpenMenu(null); }}
                               className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors"
                             >
-                              <Pencil className="w-4 h-4 text-muted-foreground" /> Rename
+                              <Pencil className="w-4 h-4 text-muted-foreground" /> Edit
                             </button>
                             <div className="border-t border-border" />
                             <button
-                              onClick={() => handleDelete(kb.id)}
+                              onClick={() => {
+                                setPendingDelete(kb);
+                                setDeleteError("");
+                                setOpenMenu(null);
+                              }}
                               className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-destructive hover:bg-destructive/8 transition-colors"
                             >
                               <Trash2 className="w-4 h-4" /> Delete
@@ -311,24 +320,26 @@ export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBase
                     {kb.name}
                   </h3>
                   <p className="text-sm text-muted-foreground leading-relaxed flex-1 line-clamp-2 mb-4">
-                    {kb.description}
+                    {kb.description || "No description."}
                   </p>
 
                   {/* Tags */}
-                  <div className="flex flex-wrap gap-1.5 mb-5">
-                    {kb.tags.map((tag) => (
-                      <span key={tag} className="text-xs px-2.5 py-1 bg-secondary text-secondary-foreground rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {kb.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-5">
+                      {kb.tags.map((tag) => (
+                        <span key={tag} className="text-xs px-2.5 py-1 bg-secondary text-secondary-foreground rounded-full">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Meta row */}
                   <div className="border-t border-border pt-4 grid grid-cols-3 gap-2 text-center mb-4">
                     {[
-                      { label: "Docs", value: kb.docCount.toLocaleString() },
-                      { label: "Size", value: kb.sizeLabel },
-                      { label: "Queries", value: kb.queryCount.toLocaleString() },
+                      { label: "Docs", value: kb.document_count.toLocaleString() },
+                      { label: "Size", value: formatBytes(kb.total_size) },
+                      { label: "Chunks", value: kb.chunk_count.toLocaleString() },
                     ].map(({ label, value }) => (
                       <div key={label}>
                         <div className="text-sm font-medium text-foreground">{value}</div>
@@ -341,16 +352,25 @@ export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBase
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
-                      {kb.updatedAt}
+                      {formatDate(kb.updated_at)}
                     </span>
-                    <button
-                      onClick={() => onQuery(`Search in ${kb.name}`)}
-                      className="inline-flex items-center gap-1.5 text-xs text-accent font-medium
-                                 hover:underline transition-colors"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Query
-                    </button>
+                    {isEmpty ? (
+                      <button
+                        onClick={() => onUploadClick(kb.id)}
+                        className="inline-flex items-center gap-1.5 text-xs text-accent font-medium hover:underline"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        Add documents
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onQuery(kb.id)}
+                        className="inline-flex items-center gap-1.5 text-xs text-accent font-medium hover:underline"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Query
+                      </button>
+                    )}
                   </div>
                 </article>
               );
@@ -379,11 +399,27 @@ export default function KnowledgeBases({ onQuery, onUploadClick }: KnowledgeBase
       <CreateKBModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onCreate={handleCreate}
+      />
+
+      <CreateKBModal
+        isOpen={editing !== null}
+        knowledgeBase={editing}
+        onClose={() => setEditing(null)}
+      />
+
+      <DeleteKBDialog
+        knowledgeBase={pendingDelete}
+        isDeleting={isDeleting}
+        error={deleteError}
+        onCancel={() => {
+          setPendingDelete(null);
+          setDeleteError("");
+        }}
+        onConfirm={handleDelete}
       />
 
       {/* Close menus on outside click */}
-      {openMenu && (
+      {openMenu !== null && (
         <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
       )}
     </div>

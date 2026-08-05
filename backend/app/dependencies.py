@@ -13,6 +13,7 @@ from app.services.llm.provider_factory import get_llm_provider
 from app.services.rag import RAGService
 from app.services.vectorstore import VectorStore
 from app.services.knowledge_base_service import KnowledgeBaseService
+from app.services.document_service import DocumentService
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -41,8 +42,21 @@ def get_rag_service(
 
 def get_knowledge_base_service(
     session: Session = Depends(get_db),
+    vectorstore: VectorStore = Depends(get_vectorstore),
 ) -> KnowledgeBaseService:
-    return KnowledgeBaseService(session)
+    return KnowledgeBaseService(session, vectorstore)
+
+
+def get_document_service(
+    session: Session = Depends(get_db),
+    embedder: Embedder = Depends(get_embedder),
+    vectorstore: VectorStore = Depends(get_vectorstore),
+) -> DocumentService:
+    return DocumentService(
+        session=session,
+        embedder=embedder,
+        vectorstore=vectorstore,
+    )
 
 
 def get_current_user(

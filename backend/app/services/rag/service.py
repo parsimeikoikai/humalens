@@ -8,7 +8,7 @@ from app.services.llm.base import BaseLLMProvider
 from app.services.rag.context_builder import build_context, format_sources
 from app.services.rag.hyde import generate_hypothetical_document
 from app.services.rag.retriever import hybrid_search
-from app.services.vectorstore import VectorStore
+from app.services.vectorstore import VectorStore, build_where
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +26,14 @@ class RAGService:
         self.vectorstore = vectorstore
         self.llm_provider = llm_provider
 
-    async def retrieve(self, payload: QueryRequest) -> dict:
+    async def retrieve(self, payload: QueryRequest, owner_id: int) -> dict:
         """
         Embeds the user's question (via a HyDE hypothetical-answer passage
         when available), retrieves relevant chunks from Chroma, and
         prepares the context for the LLM.
+
+        Retrieval is always constrained to `owner_id`, so a caller can only
+        ever reach chunks from their own knowledge bases.
         """
 
         hyde_passage = await generate_hypothetical_document(
@@ -64,10 +67,14 @@ class RAGService:
 
         top_k = payload.top_k or DEFAULT_TOP_K
 
-        where = (
-            {"category": {"$in": payload.crisis_types}}
-            if payload.crisis_types
-            else None
+        where = build_where(
+            owner_id=owner_id,
+            knowledge_base_id=payload.knowledge_base_id,
+            category=(
+                {"$in": payload.crisis_types}
+                if payload.crisis_types
+                else None
+            ),
         )
 
         try:

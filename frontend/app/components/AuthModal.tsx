@@ -8,10 +8,12 @@ import {
   useForgotPasswordMutation,
   useLoginMutation,
   useRegisterMutation,
+  type AuthResponse,
   type ForgotPasswordRequest,
   type LoginRequest,
   type RegisterRequest,
 } from "@/app/services/api/authApi";
+import { setAuthToken } from "@/app/lib/auth/token";
 
 
 interface AuthModalProps {
@@ -70,23 +72,25 @@ export default function AuthModal({
     try {
       setIsLoading(true);
 
+      const completeAuth = (res: AuthResponse) => {
+        // Persist the JWT first — every authenticated request reads it from
+        // storage, so it has to be there before the UI renders as signed in.
+        setAuthToken(res.access_token);
+
+        onAuth({
+          name: res.full_name || res.email.split("@")[0],
+          email: res.email,
+        });
+        onClose();
+      };
+
       if (tab === "login") {
         const payload: LoginRequest = {
           email: form.email,
           password: form.password,
         };
 
-        const res = await login(payload).unwrap();
-        const name =
-          res?.name ??
-          res?.user?.name ??
-          res?.full_name ??
-          form.email.split("@")[0];
-
-        const email = res?.email ?? res?.user?.email ?? form.email;
-
-        onAuth({ name, email });
-        onClose();
+        completeAuth(await login(payload).unwrap());
         return;
       }
 
@@ -114,14 +118,9 @@ export default function AuthModal({
         full_name: form.name,
       };
 
-      await register(payload).unwrap();
-      setForm((currentForm) => ({
-        ...currentForm,
-        name: "",
-        password: "",
-      }));
-      setTab("login");
-      setSuccess("Account created. Please sign in to continue.");
+      // Registration already returns a token, so sign the user straight in
+      // rather than bouncing them back to the login tab.
+      completeAuth(await register(payload).unwrap());
     } catch (err) {
       const message =
         // RTK Query/Fetch errors usually land here

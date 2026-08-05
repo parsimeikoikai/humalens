@@ -3,10 +3,13 @@ import { ArrowLeft, FileText } from "lucide-react";
 
 import SearchFilters from "./SearchFilters";
 import { API_BASE_URL } from "@/app/lib/api/baseUrl";
+import { authHeaders } from "@/app/lib/auth/token";
 
 interface SearchResultsProps {
   query: string;
   onBack: () => void;
+  /** Restrict retrieval to one knowledge base; null searches all of them. */
+  knowledgeBaseId?: number | null;
 }
 
 interface Filters {
@@ -23,7 +26,11 @@ interface QueryResultItem {
   category?: string | null;
 }
 
-export default function SearchResults({ query, onBack }: SearchResultsProps) {
+export default function SearchResults({
+  query,
+  onBack,
+  knowledgeBaseId = null,
+}: SearchResultsProps) {
   const [filters, setFilters] = useState<Filters>({
     crisisTypes: []
   });
@@ -107,11 +114,13 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
           headers: {
             accept: "text/event-stream",
             "Content-Type": "application/json",
+            ...authHeaders(),
           },
           body: JSON.stringify({
             question: query,
             top_k: 3,
             crisis_types: filters.crisisTypes.length > 0 ? filters.crisisTypes : undefined,
+            knowledge_base_id: knowledgeBaseId ?? undefined,
           }),
           signal: controller.signal,
         });
@@ -172,7 +181,7 @@ export default function SearchResults({ query, onBack }: SearchResultsProps) {
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, filters.crisisTypes.join(",")]);
+  }, [query, knowledgeBaseId, filters.crisisTypes.join(",")]);
 
 
 

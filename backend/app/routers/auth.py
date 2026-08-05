@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.models.user import User
 from app.services.auth_tokens import create_access_token
 from app.services.password import hash_password, verify_password
@@ -31,9 +32,16 @@ class ForgotPasswordRequest(BaseModel):
 class AuthResponse(BaseModel):
     id: int
     email: EmailStr
+    full_name: str | None = None
     message: str
     access_token: str
     token_type: str = "bearer"
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    full_name: str | None = None
 
 
 class MessageResponse(BaseModel):
@@ -61,6 +69,7 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)) -> Au
     return AuthResponse(
         id=user.id,
         email=user.email,
+        full_name=user.full_name,
         message="User registered successfully",
         access_token=create_access_token(user.id),
     )
@@ -77,8 +86,19 @@ def login_user(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthResp
     return AuthResponse(
         id=user.id,
         email=user.email,
+        full_name=user.full_name,
         message="Login successful",
         access_token=create_access_token(user.id),
+    )
+
+
+@router.get("/me", response_model=UserResponse)
+def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
+    """Rehydrate a session from a stored token, without re-entering credentials."""
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
     )
 
 

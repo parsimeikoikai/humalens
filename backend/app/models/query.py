@@ -7,4 +7,11 @@ class QueryRequest(BaseModel):
     crisis_types: list[str] | None = Field(
         None, description="Restrict retrieval to these crisis type categories"
     )
+    knowledge_base_id: int | None = Field(
+        None,
+        description=(
+            "Restrict retrieval to a single knowledge base. When omitted, "
+            "all of the caller's knowledge bases are searched."
+        ),
+    )
 

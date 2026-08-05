@@ -9,8 +9,9 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.dependencies import get_rag_service
+from app.dependencies import get_current_user, get_rag_service
 from app.models.query import QueryRequest
+from app.models.user import User
 from app.services.llm.provider_factory import get_llm_provider
 
 
@@ -53,6 +54,7 @@ def sse(event: str, data: str) -> str:
 @router.post("/stream")
 async def query_stream(
     payload: QueryRequest,
+    current_user: User = Depends(get_current_user),
     rag_service: RAGService = Depends(get_rag_service),
 ) -> StreamingResponse:
 
@@ -62,7 +64,7 @@ async def query_stream(
 
     # -----------------------------------------------------------------------
 
-    retrieval = await rag_service.retrieve(payload)
+    retrieval = await rag_service.retrieve(payload, owner_id=current_user.id)
 
     context = retrieval["context"]
 
@@ -154,10 +156,11 @@ async def query_stream(
 @router.post("/results", response_model=QueryResultsResponse)
 async def query_results(
     payload: QueryRequest,
+    current_user: User = Depends(get_current_user),
     rag_service: RAGService = Depends(get_rag_service),
 ) -> QueryResultsResponse:
 
-    retrieval = await rag_service.retrieve(payload)
+    retrieval = await rag_service.retrieve(payload, owner_id=current_user.id)
 
     return QueryResultsResponse(
         results=[

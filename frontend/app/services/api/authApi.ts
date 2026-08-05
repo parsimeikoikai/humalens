@@ -22,17 +22,19 @@ export type AuthUser = {
   email: string;
 };
 
-// Backend response shape is unknown here, so keep it flexible.
-type AuthResponse = {
-  name?: string;
-  full_name?: string;
-  email?: string;
+export type AuthResponse = {
+  id: number;
+  email: string;
+  full_name?: string | null;
   message?: string;
-  user?: {
-    name?: string;
-    full_name?: string;
-    email?: string;
-  };
+  access_token: string;
+  token_type?: string;
+};
+
+export type MeResponse = {
+  id: number;
+  email: string;
+  full_name?: string | null;
 };
 
 type MessageResponse = {
@@ -65,6 +67,12 @@ export const authApi = createApi({
         body,
       }),
     }),
+    me: builder.query<MeResponse, void>({
+      query: () => ({
+        url: "/auth/me",
+        headers: { accept: "application/json" },
+      }),
+    }),
     forgotPassword: builder.mutation<MessageResponse, ForgotPasswordRequest>({
       query: (body) => ({
         url: "/auth/forgot-password",
@@ -81,6 +89,7 @@ export const authApi = createApi({
 
 export const {
   useForgotPasswordMutation,
+  useLazyMeQuery,
   useLoginMutation,
   useRegisterMutation,
 } = authApi;

@@ -1,5 +1,8 @@
+from datetime import datetime
+
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.sql import func
+from pydantic import BaseModel, ConfigDict
 
 from app.database import Base
 
@@ -60,3 +63,18 @@ class Document(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class DocumentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    knowledge_base_id: int
+    original_filename: str | None = None
+    mime_type: str | None = None
+    size: int | None = None
+    category: str | None = None
+    pages: int | None = None
+    chunks: int = 0
+    status: str = "pending"
+    created_at: datetime | None = None
