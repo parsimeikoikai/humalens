@@ -6,9 +6,10 @@ import {
   ChevronDown,
   LogOut,
   FolderOpen,
-  Settings,
   Upload,
 } from "lucide-react";
+
+import { API_BASE_URL } from "@/app/lib/api/baseUrl";
 
 interface User {
   name: string;
@@ -22,6 +23,7 @@ interface NavbarProps {
   user: User | null;
   onLogout: () => void;
   onKBClick: () => void;
+  onHomeClick: () => void;
   activeView: string;
 }
 
@@ -32,6 +34,7 @@ export default function Navbar({
   user,
   onLogout,
   onKBClick,
+  onHomeClick,
   activeView,
 }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -48,7 +51,7 @@ export default function Navbar({
   }, []);
 
   const navLinks = [
-    { label: "Home", view: "home", onClick: () => {} },
+    { label: "Home", view: "home", onClick: onHomeClick },
     {
       label: "Knowledge Bases",
       view: "knowledge-bases",
@@ -72,7 +75,7 @@ export default function Navbar({
         <div className="flex items-center gap-5">
           <div
             className="flex items-center gap-2.5 cursor-pointer"
-            onClick={() => navLinks[0].onClick()}
+            onClick={onHomeClick}
           >
             <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
               <Zap className="w-4 h-4 text-accent-foreground" />
@@ -97,11 +100,14 @@ export default function Navbar({
                 {link.label}
               </button>
             ))}
+            {/* The API's own generated reference, rather than a dead "#". */}
             <a
-              href="#"
+              href={`${API_BASE_URL}/docs`}
+              target="_blank"
+              rel="noreferrer"
               className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             >
-              Docs
+              API Docs
             </a>
           </div>
         </div>
@@ -174,10 +180,6 @@ export default function Navbar({
                       >
                         <Upload className="w-4 h-4 text-muted-foreground" />
                         Upload Documents
-                      </button>
-                      <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors">
-                        <Settings className="w-4 h-4 text-muted-foreground" />
-                        Settings
                       </button>
                     </div>
                     <div className="border-t border-border py-1">

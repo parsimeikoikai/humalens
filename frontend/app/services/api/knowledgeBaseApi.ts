@@ -113,6 +113,21 @@ export const knowledgeBaseApi = createApi({
       ],
     }),
 
+    /**
+     * Category values that exist across the caller's own documents — what
+     * the search sidebar filters on. Previously the sidebar offered a fixed
+     * list of humanitarian "crisis types" that could never match anything a
+     * user had actually uploaded.
+     */
+    listCategories: builder.query<string[], number | null | undefined>({
+      query: (knowledgeBaseId) => ({
+        url: "/query/categories",
+        params: knowledgeBaseId ? { knowledge_base_id: knowledgeBaseId } : undefined,
+        headers: { accept: "application/json" },
+      }),
+      providesTags: [{ type: "Document", id: "CATEGORIES" }],
+    }),
+
     listDocuments: builder.query<KnowledgeBaseDocument[], number>({
       query: (knowledgeBaseId) => ({
         url: `/knowledge-bases/${knowledgeBaseId}/documents`,
@@ -133,6 +148,7 @@ export const knowledgeBaseApi = createApi({
       }),
       invalidatesTags: (_result, _error, { knowledgeBaseId }) => [
         { type: "Document", id: knowledgeBaseId },
+        { type: "Document", id: "CATEGORIES" },
         { type: "KnowledgeBase", id: knowledgeBaseId },
         { type: "KnowledgeBase", id: "LIST" },
       ],
@@ -185,10 +201,12 @@ export const uploadDocument = async (
 export const invalidateKnowledgeBases = () =>
   knowledgeBaseApi.util.invalidateTags([
     { type: "KnowledgeBase" as const, id: "LIST" },
+    { type: "Document" as const, id: "CATEGORIES" },
   ]);
 
 export const {
   useCreateKnowledgeBaseMutation,
+  useListCategoriesQuery,
   useDeleteDocumentMutation,
   useDeleteKnowledgeBaseMutation,
   useListDocumentsQuery,

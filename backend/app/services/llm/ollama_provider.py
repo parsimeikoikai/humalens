@@ -1,8 +1,11 @@
+import logging
 import os
 
 from openai import AsyncOpenAI
 
 from app.services.llm.base import BaseLLMProvider
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaProvider(BaseLLMProvider):
@@ -11,26 +14,23 @@ class OllamaProvider(BaseLLMProvider):
             "OLLAMA_MODEL",
             "qwen3:8b",
         )
-        base_url = os.getenv(
-
-        "OLLAMA_BASE_URL",
-        "http://host.docker.internal:11434/v1",
-
+        # Read once. This used to be read twice with two different
+        # fallbacks, so the URL that got logged was not necessarily the one
+        # the client connected to.
+        self.base_url = os.getenv(
+            "OLLAMA_BASE_URL",
+            "http://localhost:11434/v1",
         )
-        print("=" * 60)
-
-        print("OLLAMA BASE URL:", base_url)
-
-        print("OLLAMA MODEL:", self.model)
-
-        print("=" * 60)
 
         self.client = AsyncOpenAI(
             api_key="ollama",
-            base_url=os.getenv(
-                "OLLAMA_BASE_URL",
-                "http://localhost:11434/v1",
-            ),
+            base_url=self.base_url,
+        )
+
+        logger.info(
+            "Initialized Ollama provider with model %s at %s",
+            self.model,
+            self.base_url,
         )
 
     async def stream_chat(

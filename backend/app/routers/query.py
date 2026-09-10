@@ -9,10 +9,14 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.dependencies import get_current_user, get_rag_service
+from app.dependencies import (
+    get_current_user,
+    get_document_service,
+    get_rag_service,
+)
 from app.models.query import QueryRequest
 from app.models.user import User
-from app.services.llm.provider_factory import get_llm_provider
+from app.services.document_service import DocumentService
 
 
 class QueryResultItem(BaseModel):
@@ -45,7 +49,16 @@ Rules:
 
 
 def sse(event: str, data: str) -> str:
-    return f"event: {event}\ndata: {data}\n\n"
+    """Frame one server-sent event.
+
+    Every line of the payload needs its own `data:` prefix — a bare newline
+    inside the value would otherwise be read as the start of an unlabelled
+    field, and a blank line would terminate the event early and silently
+    truncate whatever followed it.
+    """
+    body = "\n".join(f"data: {line}" for line in data.split("\n"))
+
+    return f"event: {event}\n{body}\n\n"
 
 
 # ---------------------------------------------------------------------------
@@ -79,12 +92,16 @@ async def query_stream(
     )
 
     async def stream_response():
-        try:
-            llm_provider = get_llm_provider()
+        # Retrieval has already finished, so publish what it found before the
+        # first token. The sources panel fills in immediately instead of
+        # waiting on generation, and they still arrive if the LLM then fails.
+        yield sse("retrieved_documents", json.dumps(retrieved_documents))
+        yield sse("sources", sources)
 
+        try:
             logger.info("Sending request to configured LLM provider")
 
-            response = await llm_provider.stream_chat(
+            response = await rag_service.llm_provider.stream_chat(
                 messages=[
                     {
                         "role": "system",
@@ -110,13 +127,6 @@ async def query_stream(
                 if content:
                     yield sse("message", content)
 
-            # Stream has finished — send metadata once
-            yield sse(
-                "retrieved_documents",
-                json.dumps(retrieved_documents),
-            )
-
-            yield sse("sources", sources)
             yield sse("done", "")
 
         except RateLimitError as e:
@@ -150,6 +160,13 @@ async def query_stream(
     return StreamingResponse(
         stream_response(),
         media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            # nginx buffers proxied responses by default, which holds the
+            # whole answer back until generation finishes.
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -166,4 +183,17 @@ async def query_results(
         results=[
             QueryResultItem(**document) for document in retrieval["retrieved_documents"]
         ]
+    )
+
+
+@router.get("/categories", response_model=list[str])
+def query_categories(
+    knowledge_base_id: int | None = None,
+    current_user: User = Depends(get_current_user),
+    documents: DocumentService = Depends(get_document_service),
+) -> list[str]:
+    """Category values the caller can actually filter a search by."""
+    return documents.categories(
+        owner_id=current_user.id,
+        knowledge_base_id=knowledge_base_id,
     )

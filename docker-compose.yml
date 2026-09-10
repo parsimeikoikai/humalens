@@ -21,8 +21,19 @@ services:
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
 
+      # Matches the mounted volume below, so the embedding model isn't
+      # re-downloaded on every container rebuild.
+      - FASTEMBED_CACHE_DIR=/root/.cache/fastembed
+
       # Database
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ragdb
+
+      # Auth. Override JWT_SECRET_KEY with a real random secret before
+      # deploying anywhere; ENVIRONMENT=production refuses to start without it.
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-change-me}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3050,http://localhost:3000}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
 
       # AI
       - LLM_API_KEY=${LLM_API_KEY}

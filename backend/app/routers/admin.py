@@ -6,11 +6,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies import get_current_admin
 from app.models.document import Document
 from app.models.user import User
 
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    # Every route here reads across tenants, so the whole router is gated on
+    # an operator account rather than each handler remembering to ask.
+    dependencies=[Depends(get_current_admin)],
+)
 
 
 class UserSummary(BaseModel):

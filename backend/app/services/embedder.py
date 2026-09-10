@@ -38,8 +38,13 @@ class Embedder:
 
         # fastembed defaults to a tmpdir cache if cache_dir isn't given,
         # which loses the downloaded model on every container recreate.
-        # Pin it somewhere a volume can persist across rebuilds.
-        cache_dir = os.getenv("FASTEMBED_CACHE_DIR", "/root/.cache/fastembed")
+        # Pin it somewhere a volume can persist across rebuilds — but to a
+        # path that exists off-container too: the previous default of
+        # /root/.cache/fastembed made every local run die with a read-only
+        # filesystem error. docker-compose points this at the mounted volume.
+        cache_dir = os.getenv("FASTEMBED_CACHE_DIR") or os.path.join(
+            os.path.expanduser("~"), ".cache", "fastembed"
+        )
 
         # Load once per process
         self._model = TextEmbedding(

@@ -45,21 +45,37 @@ class VectorStore:
 
     def __init__(
         self,
-        host: str = os.getenv("CHROMA_HOST", "chromadb"),
-        port: int = int(os.getenv("CHROMA_PORT", "8001")),
+        host: str | None = None,
+        port: int | None = None,
         collection_name: str = "documents",
     ) -> None:
-       
-        self._client = chromadb.PersistentClient(
-            path=os.getenv("CHROMA_PATH", "./chroma_db")
-        )
+        # A CHROMA_HOST means there's a Chroma server to talk to (the
+        # docker-compose setup runs one); without it, fall back to an
+        # on-disk store so a bare `uvicorn` run works with no extra
+        # services. Previously the server settings were read and then
+        # ignored, so the running container was never actually used.
+        host = host if host is not None else os.getenv("CHROMA_HOST", "")
+        port = port if port is not None else int(os.getenv("CHROMA_PORT", "8000"))
+
+        if host:
+            self._client = chromadb.HttpClient(host=host, port=port)
+            location = f"{host}:{port}"
+        else:
+            path = os.getenv("CHROMA_PATH", "./chroma_db")
+            self._client = chromadb.PersistentClient(path=path)
+            location = path
+
         self._collection = self._client.get_or_create_collection(
             name=collection_name,
             metadata={
                 "hnsw:space": "cosine"
             }, 
         )
-        logger.info(f"VectorStore connected — collection: '{collection_name}'")
+        logger.info(
+            "VectorStore connected — collection: '%s' at %s",
+            collection_name,
+            location,
+        )
 
     # --------------------------------------------------
     # Store
@@ -101,10 +117,9 @@ class VectorStore:
                 "category": chunk["metadata"].get("category") or "General",
             }
 
-            # Tenancy keys. Chroma rejects None values, so only set what we
-            # actually have — chunks ingested through the unauthenticated
-            # /ingest/api path carry no owner and stay unreachable from the
-            # owner-scoped query path.
+            # Tenancy keys. Chroma rejects None values, so only set what
+            # we actually have. Retrieval always filters on owner_id, so a
+            # chunk written without one is unreachable by design.
             for key in ("owner_id", "knowledge_base_id", "document_id"):
                 value = chunk["metadata"].get(key)
                 if value is not None:

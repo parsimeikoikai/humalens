@@ -18,6 +18,9 @@ interface UploadModalProps {
   onClose: () => void;
   /** Preselected target. When null the user picks one in the modal. */
   knowledgeBaseId?: number | null;
+  /** Take the user to the Knowledge Bases page — they can't upload
+   *  anything until they have one. */
+  onManageKnowledgeBases?: () => void;
 }
 
 type UploadState = "idle" | "uploading" | "success" | "error";
@@ -26,6 +29,7 @@ export default function UploadModal({
   isOpen,
   onClose,
   knowledgeBaseId = null,
+  onManageKnowledgeBases,
 }: UploadModalProps) {
   const dispatch = useDispatch();
 
@@ -52,6 +56,18 @@ export default function UploadModal({
     // a selection the user made in the dropdown.
     setTargetKbId(knowledgeBaseId ?? onlyKbId);
   }, [isOpen, knowledgeBaseId, onlyKbId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -177,7 +193,16 @@ export default function UploadModal({
                     Knowledge Bases page, then upload into it.
                   </p>
                   <button
-                    onClick={resetAndClose}
+                    onClick={() => {
+                      // This used to just close the modal, leaving the user
+                      // exactly where they started with no way to act on it.
+                      if (onManageKnowledgeBases) {
+                        onManageKnowledgeBases();
+                        return;
+                      }
+
+                      resetAndClose();
+                    }}
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-accent-foreground
                                rounded-lg text-sm font-medium hover:bg-opacity-90 transition-all"
                   >
@@ -188,8 +213,8 @@ export default function UploadModal({
               ) : (
                 <>
                   <p className="text-muted-foreground mb-6 leading-relaxed">
-                    Upload situation reports, crisis briefs, assessments, or field
-                    updates. We support PDF, DOCX, and text documents up to 50MB.
+                    Upload contracts, reports, research, notes — anything you want to
+                    ask questions about. PDF, DOCX and TXT, up to 50MB.
                   </p>
 
                   {/* Target knowledge base */}

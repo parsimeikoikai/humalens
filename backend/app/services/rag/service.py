@@ -71,8 +71,8 @@ class RAGService:
             owner_id=owner_id,
             knowledge_base_id=payload.knowledge_base_id,
             category=(
-                {"$in": payload.crisis_types}
-                if payload.crisis_types
+                {"$in": payload.categories}
+                if payload.categories
                 else None
             ),
         )

@@ -19,9 +19,11 @@ interface HeroProps {
   isAuthenticated: boolean;
 }
 
-type AdminOverviewResponse = {
-  users: Array<unknown>;
-  documents: Array<unknown>;
+type PlatformStats = {
+  users: number;
+  documents: number;
+  knowledge_bases: number;
+  chunks: number;
 };
 
 export default function Hero({
@@ -56,7 +58,11 @@ const [topK, setTopK] = useState(3);
 
     const loadStats = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/admin/overview`, {
+        // /stats returns counts only. This used to read /admin/overview,
+        // which was unauthenticated and returned every registered user's
+        // email address and every uploaded filename — to a signed-out
+        // visitor, just to render two numbers.
+        const response = await fetch(`${API_BASE_URL}/stats`, {
           signal: controller.signal,
         });
 
@@ -64,10 +70,10 @@ const [topK, setTopK] = useState(3);
           throw new Error("Unable to load platform stats.");
         }
 
-        const data = (await response.json()) as AdminOverviewResponse;
+        const data = (await response.json()) as PlatformStats;
         setStats({
-          documentsIndexed: data.documents?.length ?? 0,
-          users: data.users?.length ?? 0,
+          documentsIndexed: data.documents ?? 0,
+          users: data.users ?? 0,
         });
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
@@ -132,10 +138,17 @@ const [topK, setTopK] = useState(3);
             <button
               type="submit"
               disabled={!query.trim()}
+              title={
+                isAuthenticated
+                  ? undefined
+                  : "Sign in to search across your documents"
+              }
               className="absolute right-3 top-1/2 -translate-y-1/2 px-5 py-2.5
                          bg-accent text-accent-foreground rounded-lg text-sm font-medium
-                         hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                         hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all
+                         inline-flex items-center gap-1.5"
             >
+              {!isAuthenticated && <Lock className="w-3.5 h-3.5" />}
               Search
             </button>
           </div>
@@ -169,7 +182,7 @@ const [topK, setTopK] = useState(3);
                               hover:shadow-md transition-all cursor-default"
               >
                 <Database className="w-4 h-4" />
-                <span>Public knowledge bases</span>
+                <span>Private by default</span>
                 <Sparkles className="w-3.5 h-3.5 opacity-80" />
               </div>
               <div
@@ -177,7 +190,7 @@ const [topK, setTopK] = useState(3);
                               rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity
                               pointer-events-none z-10"
               >
-                Query across shared and curated document collections
+                Every search is scoped to your own documents
               </div>
             </div>
 
@@ -224,6 +237,20 @@ const [topK, setTopK] = useState(3);
               </div>
             </div>
           </div>
+
+          {!isAuthenticated && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Humalens searches your own documents, so you&apos;ll be asked to{" "}
+              <button
+                type="button"
+                onClick={onLoginClick}
+                className="text-accent hover:underline font-medium"
+              >
+                sign in
+              </button>{" "}
+              first — your question is kept and runs straight after.
+            </p>
+          )}
 
           {/* Example queries */}
           <div className="mt-7 flex items-center justify-center gap-2 flex-wrap">

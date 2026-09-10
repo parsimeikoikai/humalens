@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,17 +12,24 @@ from app.services.password import hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+_DUMMY_PASSWORD_HASH = hash_password("password-that-is-never-valid")
+
+
+MIN_PASSWORD_LENGTH = 8
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
-    full_name: str | None = None
+    # Enforced here as well as in the UI — the API is public, so a
+    # client-side check alone lets anyone register a one-character password.
+    password: str = Field(..., min_length=MIN_PASSWORD_LENGTH, max_length=128)
+    full_name: str | None = Field(None, max_length=120)
 
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., max_length=128)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -80,7 +87,14 @@ def login_user(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthResp
     email = payload.email.lower().strip()
 
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
-    if user is None or not verify_password(payload.password, user.password_hash):
+
+    # Verify against a dummy hash when the email is unknown, so a failed
+    # login costs the same either way and the response time doesn't reveal
+    # which addresses are registered.
+    password_hash = user.password_hash if user else _DUMMY_PASSWORD_HASH
+    is_valid = verify_password(payload.password, password_hash)
+
+    if user is None or not is_valid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     return AuthResponse(

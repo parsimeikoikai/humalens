@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.services.auth_tokens import decode_access_token
@@ -86,3 +87,21 @@ def get_current_user(
         )
 
     return user
+
+
+def get_current_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Operator-only access, for the routes that read across every tenant.
+
+    Membership is configured out-of-band via ADMIN_EMAILS rather than stored
+    on the user, so no ordinary sign-up path can ever grant it. An empty
+    allowlist means nobody is an admin.
+    """
+    if current_user.email.lower() not in settings.admin_emails:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required",
+        )
+
+    return current_user

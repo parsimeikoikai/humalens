@@ -81,6 +81,34 @@ class DocumentService:
             for document in self.session.execute(statement).scalars()
         ]
 
+    def categories(
+        self,
+        owner_id: int,
+        knowledge_base_id: int | None = None,
+    ) -> List[str]:
+        """Distinct categories across the caller's own documents.
+
+        This is what the search sidebar filters on, so it has to come from
+        the documents that actually exist rather than a fixed list.
+        """
+        statement = select(Document.category).where(
+            Document.user_id == owner_id,
+            Document.category.isnot(None),
+        )
+
+        if knowledge_base_id is not None:
+            statement = statement.where(
+                Document.knowledge_base_id == knowledge_base_id
+            )
+
+        categories = {
+            category.strip()
+            for category in self.session.execute(statement.distinct()).scalars()
+            if category and category.strip()
+        }
+
+        return sorted(categories)
+
     # --------------------------------------------------
     # Upload
     # --------------------------------------------------

@@ -1,5 +1,7 @@
 import { Zap } from "lucide-react";
 
+import { API_BASE_URL } from "@/app/lib/api/baseUrl";
+
 export default function Footer() {
   return (
     <footer className="border-t border-border bg-card py-10 px-6">
@@ -10,16 +12,29 @@ export default function Footer() {
           </div>
           <span className="font-medium text-foreground">Humalens</span>
           <span className="text-border">·</span>
-          <span>© 2026</span>
+          <span>© {new Date().getFullYear()}</span>
         </div>
+        {/* Only links that actually lead somewhere — the Privacy, Terms and
+            Status links here were all href="#". */}
         <div className="flex items-center gap-6">
-          <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-          <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-          <a href="#" className="hover:text-foreground transition-colors">Docs</a>
-          <a href="#" className="hover:text-foreground transition-colors">Status</a>
+          <a
+            href={`${API_BASE_URL}/docs`}
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground transition-colors"
+          >
+            API Docs
+          </a>
+          <a
+            href={`${API_BASE_URL}/health`}
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground transition-colors"
+          >
+            Status
+          </a>
         </div>
       </div>
     </footer>
   );
 }
-
